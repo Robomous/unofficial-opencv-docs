@@ -1,0 +1,6 @@
+:root {
+  /* Primary accent color for links and highlights */
+  --sl-color-accent: #F2594B;
+  /* Accent text color, if used by the theme */
+  --sl-color-accent-text: #F2594B;
+}
