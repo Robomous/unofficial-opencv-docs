@@ -1,7 +1,6 @@
 ---
 title: OpenCV Python Tutorials
 description: Unofficial documentation-style tutorials focused on OpenCV for Python.
-template: splash
 hero:
   title: Unofficial OpenCV Documentation
   tagline: Learn OpenCV step by step with practical Python examples focused on image processing and computer vision.
@@ -15,7 +14,8 @@ hero:
 
 Welcome to this unofficial OpenCV documentation focused only on the Python API.
 
-![OpenCV Logo](../../assets/opencv_logo.svg)
+<img src="/assets/opencv_logo.svg" alt="OpenCV Logo" class="dark:sl-hidden" />
+<img src="/assets/opencv_logo_white.svg" alt="OpenCV Logo" class="light:sl-hidden" />
 
 This site aims to provide:
 

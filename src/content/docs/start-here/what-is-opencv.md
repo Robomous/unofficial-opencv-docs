@@ -5,7 +5,8 @@ description: A high-level overview of OpenCV and how it fits into computer visio
 
 OpenCV is an open-source library for computer vision and image processing.
 
-![OpenCV Logo](../../../assets/opencv_logo.svg)
+<img src="/assets/opencv_logo.svg" alt="OpenCV Logo" class="dark:sl-hidden" />
+<img src="/assets/opencv_logo_white.svg" alt="OpenCV Logo" class="light:sl-hidden" />
 
 In this page, we briefly explain:
 

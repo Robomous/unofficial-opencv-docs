@@ -5,7 +5,8 @@ description: Una visión general de OpenCV y su papel en proyectos de visión po
 
 OpenCV es una librería de código abierto para visión por computadora y procesamiento de imágenes.
 
-![OpenCV Logo](../../../../assets/opencv_logo.svg)
+<img src="/assets/opencv_logo.svg" alt="OpenCV Logo" class="dark:sl-hidden" />
+<img src="/assets/opencv_logo_white.svg" alt="OpenCV Logo" class="light:sl-hidden" />
 
 En esta página, explicamos brevemente:
 

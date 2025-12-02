@@ -4,3 +4,21 @@
   /* Accent text color, if used by the theme */
   --sl-color-accent-text: #F2594B;
 }
+
+/* Mobile responsive: Hide navbar title and make logo smaller */
+@media (max-width: 768px) {
+  /* Hide only the title text span, not the logo images */
+  .site-title span,
+  .header .site-title span,
+  a.site-title > span {
+    display: none !important;
+  }
+  
+  /* Make the logo smaller on mobile - DO NOT override display property to preserve dark/light mode switching */
+  .site-title img,
+  .header .site-title img {
+    max-height: 32px !important;
+    width: auto !important;
+    /* Do not set display - let Starlight's light:sl-hidden/dark:sl-hidden classes control visibility */
+  }
+}

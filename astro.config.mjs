@@ -9,7 +9,8 @@ export default defineConfig({
 			title: 'Unofficial OpenCV Documentation',
 			favicon: '/favicon.ico',
 			logo: {
-				src: './src/assets/robomous-logo-banner.svg',
+				light: './src/assets/robomous-logo-banner.svg',
+				dark: './src/assets/robomous-logo-banner-white.png',
 				alt: 'Robomous Logo'
 			},
 			social: [
