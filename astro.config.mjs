@@ -12,6 +12,13 @@ export default defineConfig({
 				src: './src/assets/robomous-logo-banner.svg',
 				alt: 'Robomous Logo'
 			},
+			social: [
+				{
+					icon: 'github',
+					label: 'GitHub',
+					href: 'https://github.com/Robomous/unofficial-opencv-docs'
+				}
+			],
 			customCss: ['./src/styles/custom-colors.css'],
 			locales: {
 				// English (default) content files are at `src/content/docs/...` (root)
