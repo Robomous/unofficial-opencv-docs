@@ -1,0 +1,141 @@
+---
+title: ¿Qué es OpenCV?
+description: Una visión general completa de OpenCV, su historia, características y aplicaciones en visión por computadora y procesamiento de imágenes.
+sidebar:
+  order: 1
+---
+
+import { Aside, Card, CardGrid } from '@astrojs/starlight/components';
+
+OpenCV (Open Source Computer Vision Library) es una librería de código abierto diseñada para aplicaciones de visión por computadora y aprendizaje automático en tiempo real. Desde su creación en 1999, OpenCV se ha convertido en una de las herramientas más utilizadas en el campo de la visión por computadora, ofreciendo más de 2,500 algoritmos optimizados y soportando múltiples lenguajes de programación y plataformas.
+
+<img src="/assets/opencv_logo.svg" alt="OpenCV Logo" class="dark:sl-hidden" />
+<img src="/assets/opencv_logo_white.svg" alt="OpenCV Logo" class="light:sl-hidden" />
+
+## Resumen
+
+OpenCV proporciona un conjunto completo de herramientas para manipular imágenes, video y entrada de cámara. Permite a los desarrolladores construir aplicaciones que pueden:
+
+- Procesar y analizar imágenes en tiempo real
+- Detectar y rastrear objetos en flujos de video
+- Realizar tareas de aprendizaje automático con datos de visión por computadora
+- Trabajar con múltiples formatos de imagen y códecs de video
+- Integrarse con frameworks de aprendizaje profundo
+
+<Aside>
+Esta documentación se enfoca exclusivamente en la **API de Python** de OpenCV, que es una de las interfaces más populares debido a su simplicidad y amplio soporte del ecosistema.
+</Aside>
+
+## Breve Historia
+
+OpenCV comenzó como una iniciativa de Intel Research en 1999, con el objetivo de avanzar en aplicaciones intensivas en CPU y proporcionar una base de código abierta y optimizada para visión por computadora. El primer lanzamiento público ocurrió en junio de 2000 durante la Conferencia IEEE sobre Visión por Computadora y Reconocimiento de Patrones. A lo largo de los años, OpenCV ha evolucionado desde una librería basada en C hasta una implementación integral en C++ con bindings para Python, Java y otros lenguajes, expandiéndose a plataformas móviles e integrando capacidades de aprendizaje profundo a través de su módulo DNN.
+
+Hoy en día, OpenCV es mantenido por la fundación sin fines de lucro [OpenCV.org](https://opencv.org/), establecida en 2012, y continúa siendo apoyado por organizaciones como Intel, Google y Willow Garage.
+
+<Aside type="tip">
+Para obtener información más detallada sobre la historia y el desarrollo de OpenCV, visita el [sitio web oficial de OpenCV](https://opencv.org/about/).
+</Aside>
+
+## Características Principales
+
+La fortaleza de OpenCV radica en su conjunto integral y versátil de características. La librería incluye más de **2,500 algoritmos optimizados** que cubren prácticamente todos los aspectos de la visión por computadora, desde operaciones fundamentales de imagen hasta integración avanzada de aprendizaje automático y aprendizaje profundo.
+
+Proporciona interfaces nativas para múltiples lenguajes de programación, con **C++** como implementación principal. **Python** es ampliamente utilizado para prototipado rápido, **Java** para desarrollo en Android, y **MATLAB** para aplicaciones de investigación. Este soporte multi-lenguaje garantiza que los desarrolladores puedan trabajar en su entorno preferido.
+
+La compatibilidad multiplataforma de OpenCV abarca Windows, Linux, macOS, Android e iOS, haciéndola accesible en diferentes ecosistemas de desarrollo. La librería está optimizada para procesamiento en tiempo real con soporte de aceleración por hardware, permitiendo procesamiento eficiente de video, aplicaciones robóticas y sistemas interactivos.
+
+Adicionalmente, OpenCV se integra perfectamente con frameworks populares de aprendizaje automático como TensorFlow, PyTorch y ONNX. También proporciona algoritmos integrados de aprendizaje automático para tareas de clasificación estadística, regresión y clustering.
+
+## Módulos Principales
+
+OpenCV está organizado en varios módulos, cada uno enfocado en aspectos específicos de la visión por computadora:
+
+<CardGrid>
+  <Card title="Core" icon="code">
+    Estructuras de datos fundamentales (como la clase `Mat`) y funciones básicas utilizadas en todos los módulos.
+  </Card>
+  <Card title="Procesamiento de Imágenes" icon="image">
+    Filtrado lineal y no lineal, transformaciones geométricas, conversiones de espacio de color y operaciones morfológicas.
+  </Card>
+  <Card title="E/S de Video" icon="video">
+    Interfaz para captura de video y códecs de video, facilitando operaciones de entrada y salida de video.
+  </Card>
+  <Card title="Detección de Objetos" icon="search">
+    Algoritmos para detectar objetos e instancias de clases predefinidas, como rostros, ojos y automóviles.
+  </Card>
+  <Card title="Aprendizaje Automático" icon="brain">
+    Clases y funciones para clasificación estadística, regresión y clustering de datos.
+  </Card>
+  <Card title="Aprendizaje Profundo" icon="network">
+    Carga y ejecución de modelos de aprendizaje profundo pre-entrenados a través del módulo DNN, soportando formatos como TensorFlow, PyTorch y ONNX.
+  </Card>
+</CardGrid>
+
+<Aside>
+Para una lista completa de todos los módulos de OpenCV y su documentación, visita la [documentación oficial de OpenCV](https://docs.opencv.org/master/).
+</Aside>
+
+## Aplicaciones Comunes
+
+La versatilidad de OpenCV ha llevado a su adopción en numerosos dominios:
+
+- **Reconocimiento Facial**: Sistemas de seguridad y autenticación de usuarios
+- **Detección y Seguimiento de Objetos**: Vigilancia, vehículos autónomos y robótica
+- **Imagen Médica**: Análisis de rayos X, resonancias magnéticas y otras imágenes médicas
+- **Realidad Aumentada (AR)**: Superposición de contenido digital en entornos del mundo real
+- **Reconocimiento Óptico de Caracteres (OCR)**: Extracción de texto de imágenes
+- **Reconocimiento de Gestos**: Interacción humano-computadora a través de movimientos de manos
+- **Unión de Imágenes**: Creación de panoramas a partir de múltiples imágenes
+- **Fotografía Computacional**: Reducción de ruido en imágenes, imágenes HDR e inpainting
+
+## Ejemplo Básico
+
+Aquí tienes un ejemplo simple que demuestra cómo OpenCV puede cargar y mostrar una imagen:
+
+```python
+import cv2
+
+# Cargar una imagen desde disco
+img = cv2.imread("imagen.jpg")
+
+# Verificar que la imagen se cargó correctamente
+if img is not None:
+    # Mostrar la imagen en una ventana
+    cv2.imshow("Mi Imagen", img)
+    
+    # Esperar a que el usuario presione una tecla
+    cv2.waitKey(0)
+    
+    # Cerrar todas las ventanas
+    cv2.destroyAllWindows()
+else:
+    print("Error: No se pudo cargar la imagen")
+```
+
+Este ejemplo básico demuestra una de las operaciones más comunes: cargar y visualizar una imagen. OpenCV ofrece muchas más capacidades para procesar y analizar imágenes.
+
+<Aside type="tip">
+¿Listo para comenzar? Consulta la guía de [Instalación](/es/getting-started/installation/) para configurar OpenCV, luego sigue la guía de [Inicio Rápido](/es/getting-started/quick-start/) para tus primeros ejemplos prácticos.
+</Aside>
+
+## ¿Por qué Python?
+
+Esta documentación se enfoca en la API de Python de OpenCV por varias razones:
+
+- **Facilidad de Uso**: La sintaxis simple de Python lo hace ideal para aprender y prototipado rápido
+- **Ecosistema Rico**: Librerías extensas como NumPy, Matplotlib y scikit-learn se integran perfectamente
+- **Soporte de la Comunidad**: Gran comunidad con abundantes tutoriales y ejemplos
+- **Desarrollo Rápido**: Ciclo de desarrollo más rápido en comparación con C++
+- **Valor Educativo**: Más accesible para principiantes mientras sigue siendo lo suficientemente potente para producción
+
+<Aside>
+Si bien Python es excelente para desarrollo y prototipado, C++ sigue siendo la implementación principal y ofrece mejor rendimiento para sistemas de producción que requieren máxima velocidad.
+</Aside>
+
+## Referencias
+
+- [Sitio Web Oficial de OpenCV](https://opencv.org/)
+- [Documentación de OpenCV](https://docs.opencv.org/master/)
+- [Repositorio de OpenCV en GitHub](https://github.com/opencv/opencv)
+- [Página Acerca de OpenCV](https://opencv.org/about/)
+- [Página de Aniversario de OpenCV](https://opencv.org/anniversary/)

@@ -1,5 +1,5 @@
 ---
-title: Guías
+title: Descripción General
 description: Guías prácticas enfocadas en temas específicos de OpenCV.
 ---
 

@@ -1,0 +1,141 @@
+---
+title: What is OpenCV?
+description: A comprehensive overview of OpenCV, its history, features, and applications in computer vision and image processing.
+sidebar:
+  order: 1
+---
+
+import { Aside, Card, CardGrid } from '@astrojs/starlight/components';
+
+OpenCV (Open Source Computer Vision Library) is a comprehensive, open-source library designed for real-time computer vision and machine learning applications. Since its inception in 1999, OpenCV has become one of the most widely used tools in the field of computer vision, offering over 2,500 optimized algorithms and supporting multiple programming languages and platforms.
+
+<img src="/assets/opencv_logo.svg" alt="OpenCV Logo" class="dark:sl-hidden" />
+<img src="/assets/opencv_logo_white.svg" alt="OpenCV Logo" class="light:sl-hidden" />
+
+## Overview
+
+OpenCV provides a rich set of tools for manipulating images, video, and camera input. It enables developers to build applications that can:
+
+- Process and analyze images in real-time
+- Detect and track objects in video streams
+- Perform machine learning tasks with computer vision data
+- Work with multiple image formats and video codecs
+- Integrate with deep learning frameworks
+
+<Aside>
+This documentation focuses exclusively on the **Python API** of OpenCV, which is one of the most popular interfaces due to its simplicity and extensive ecosystem support.
+</Aside>
+
+## A Brief History
+
+OpenCV began as an Intel Research initiative in 1999, with the goal of advancing CPU-intensive applications and providing an open, optimized codebase for computer vision. The first public release occurred in June 2000 during the IEEE Conference on Computer Vision and Pattern Recognition. Over the years, OpenCV has evolved from a C-based library to a comprehensive C++ implementation with bindings for Python, Java, and other languages, expanding to mobile platforms and integrating deep learning capabilities through its DNN module.
+
+Today, OpenCV is maintained by the non-profit foundation [OpenCV.org](https://opencv.org/), established in 2012, and continues to be supported by organizations like Intel, Google, and Willow Garage.
+
+<Aside type="tip">
+For more detailed information about OpenCV's history and development, visit the [official OpenCV website](https://opencv.org/about/).
+</Aside>
+
+## Key Features
+
+OpenCV's strength lies in its comprehensive and versatile feature set. The library includes over **2,500 optimized algorithms** covering virtually every aspect of computer vision, from fundamental image operations to advanced machine learning and deep learning integration. 
+
+It provides native interfaces for multiple programming languages, with **C++** serving as the primary implementation. **Python** is widely used for rapid prototyping, **Java** for Android development, and **MATLAB** for research applications. This multi-language support ensures developers can work in their preferred environment.
+
+OpenCV's cross-platform compatibility spans Windows, Linux, macOS, Android, and iOS, making it accessible across different development ecosystems. The library is optimized for real-time processing with hardware acceleration support, enabling efficient video processing, robotics applications, and interactive systems.
+
+Additionally, OpenCV seamlessly integrates with popular machine learning frameworks like TensorFlow, PyTorch, and ONNX. It also provides built-in machine learning algorithms for statistical classification, regression, and clustering tasks.
+
+## Main Modules
+
+OpenCV is organized into several modules, each focusing on specific aspects of computer vision:
+
+<CardGrid>
+  <Card title="Core" icon="code">
+    Fundamental data structures (like the `Mat` class) and basic functions used across all modules.
+  </Card>
+  <Card title="Image Processing" icon="image">
+    Linear and non-linear filtering, geometric transformations, color space conversions, and morphological operations.
+  </Card>
+  <Card title="Video I/O" icon="video">
+    Interface for video capturing and video codecs, facilitating video input and output operations.
+  </Card>
+  <Card title="Object Detection" icon="search">
+    Algorithms for detecting objects and instances of predefined classes, such as faces, eyes, and cars.
+  </Card>
+  <Card title="Machine Learning" icon="brain">
+    Classes and functions for statistical classification, regression, and clustering of data.
+  </Card>
+  <Card title="Deep Learning" icon="network">
+    Loading and running pre-trained deep learning models through the DNN module, supporting formats like TensorFlow, PyTorch, and ONNX.
+  </Card>
+</CardGrid>
+
+<Aside>
+For a complete list of all OpenCV modules and their documentation, visit the [official OpenCV documentation](https://docs.opencv.org/master/).
+</Aside>
+
+## Common Applications
+
+OpenCV's versatility has led to its adoption in numerous domains:
+
+- **Facial Recognition**: Security systems and user authentication
+- **Object Detection and Tracking**: Surveillance, autonomous vehicles, and robotics
+- **Medical Imaging**: Analysis of X-rays, MRIs, and other medical images
+- **Augmented Reality (AR)**: Overlaying digital content onto real-world environments
+- **Optical Character Recognition (OCR)**: Text extraction from images
+- **Gesture Recognition**: Human-computer interaction through hand movements
+- **Image Stitching**: Creating panoramas from multiple images
+- **Computational Photography**: Image denoising, HDR imaging, and inpainting
+
+## Basic Example
+
+Here's a simple example demonstrating how OpenCV can load and display an image:
+
+```python
+import cv2
+
+# Load an image from disk
+img = cv2.imread("image.jpg")
+
+# Verify the image loaded correctly
+if img is not None:
+    # Display the image in a window
+    cv2.imshow("My Image", img)
+    
+    # Wait for the user to press a key
+    cv2.waitKey(0)
+    
+    # Close all windows
+    cv2.destroyAllWindows()
+else:
+    print("Error: Could not load the image")
+```
+
+This basic example demonstrates one of the most common operations: loading and displaying an image. OpenCV offers many more capabilities for processing and analyzing images.
+
+<Aside type="tip">
+Ready to get started? Check out the [Installation](/getting-started/installation/) guide to set up OpenCV, then follow the [Quick Start](/getting-started/quick-start/) guide for your first practical examples.
+</Aside>
+
+## Why Python?
+
+This documentation focuses on the Python API of OpenCV for several reasons:
+
+- **Ease of Use**: Python's simple syntax makes it ideal for learning and rapid prototyping
+- **Rich Ecosystem**: Extensive libraries like NumPy, Matplotlib, and scikit-learn integrate seamlessly
+- **Community Support**: Large community with abundant tutorials and examples
+- **Rapid Development**: Faster development cycle compared to C++
+- **Educational Value**: More accessible for beginners while still being powerful enough for production
+
+<Aside>
+While Python is excellent for development and prototyping, C++ remains the primary implementation and offers better performance for production systems requiring maximum speed.
+</Aside>
+
+## References
+
+- [OpenCV Official Website](https://opencv.org/)
+- [OpenCV Documentation](https://docs.opencv.org/master/)
+- [OpenCV GitHub Repository](https://github.com/opencv/opencv)
+- [OpenCV About Page](https://opencv.org/about/)
+- [OpenCV Anniversary Page](https://opencv.org/anniversary/)

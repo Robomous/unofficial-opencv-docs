@@ -2,7 +2,7 @@
 
 -----------------
 
-Unofficial documentation focused on OpenCV for Python. An open source project by Robomous for the community.
+Documentation focused on OpenCV for Python. An open source project by Robomous for the community.
 
 [![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
 

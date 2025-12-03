@@ -1,5 +1,5 @@
 ---
-title: Guides
+title: Overview
 description: Practical guides focused on specific OpenCV topics.
 ---
 

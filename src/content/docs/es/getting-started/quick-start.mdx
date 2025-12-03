@@ -1,0 +1,454 @@
+---
+title: Inicio Rápido
+description: Comienza a usar OpenCV en minutos con un ejemplo simple.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Esta sección te guía paso a paso para comenzar a utilizar OpenCV en Python de manera práctica y efectiva.
+
+En esta guía abordaremos:
+
+- Primeros ejemplos prácticos con imágenes y video.
+- Conceptos esenciales que debes conocer (BGR vs RGB, shape, tipos de datos, coordenadas).
+- Un mini pipeline completo de visión por computadora.
+- Problemas comunes y cómo evitarlos.
+
+<Aside>
+Si aún no has instalado OpenCV, consulta la página de [Instalación](/es/getting-started/installation/) antes de continuar.
+</Aside>
+
+## Tu primer script con OpenCV
+
+Asumiendo que ya tienes OpenCV instalado, comenzaremos con un ejemplo básico: leer una imagen desde disco, mostrarla en una ventana y guardarla nuevamente.
+
+```python
+import cv2
+
+# Leer una imagen desde disco
+img = cv2.imread("image.jpg")  # Reemplaza con la ruta de tu propia imagen
+
+if img is None:
+    raise FileNotFoundError("No se pudo cargar la imagen. Verifica la ruta.")
+
+# Mostrar la imagen en una ventana
+cv2.imshow("Imagen original", img)
+
+# Esperar hasta que se presione cualquier tecla
+cv2.waitKey(0)
+
+# Cerrar todas las ventanas de OpenCV
+cv2.destroyAllWindows()
+
+# Guardar una copia de la imagen
+cv2.imwrite("image_copy.jpg", img)
+```
+
+Este ejemplo introduce las funciones fundamentales: `cv2.imread()` para cargar imágenes, `cv2.imshow()` para visualizarlas, y `cv2.imwrite()` para guardarlas.
+
+## Conceptos fundamentales que debes entender
+
+Antes de profundizar en operaciones más complejas, es crucial comprender algunos aspectos fundamentales de cómo OpenCV maneja las imágenes en Python:
+
+<Steps>
+  1. **OpenCV utiliza BGR, no RGB**
+
+     Una de las diferencias más importantes es que cuando lees una imagen con `cv2.imread()`, el orden de los canales de color es **BGR** (Blue, Green, Red), a diferencia de muchas otras librerías como Matplotlib, que utilizan **RGB**.
+
+     ```python
+     import cv2
+
+     img_bgr = cv2.imread("image.jpg")
+     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+     ```
+
+     <Aside type="caution">
+     Si planeas visualizar imágenes con Matplotlib después de procesarlas con OpenCV, siempre convierte de BGR a RGB antes de mostrarlas.
+     </Aside>
+
+  2. **Las imágenes son arreglos de NumPy**
+
+     En Python, las imágenes de OpenCV son simplemente arreglos multidimensionales de NumPy (`numpy.ndarray`). Esto significa que puedes utilizar todas las operaciones de NumPy directamente sobre las imágenes.
+
+     ```python
+     import cv2
+
+     img = cv2.imread("image.jpg")
+
+     print(type(img))       # <class 'numpy.ndarray'>
+     print(img.shape)       # (alto, ancho, canales)
+     print(img.dtype)       # generalmente uint8
+     ```
+
+     <Aside>
+     **Detalles importantes**:
+     - `img.shape` devuelve una tupla `(alto, ancho, canales)`. Para una imagen a color, típicamente será `(altura, ancho, 3)`.
+     - Por defecto, las imágenes de 8 bits utilizan `dtype=uint8`, lo que significa valores enteros entre 0 y 255.
+     </Aside>
+
+  3. **Sistema de coordenadas e indexación**
+
+     La indexación de píxeles en OpenCV sigue la convención `[fila, columna]`, que corresponde a `[y, x]`:
+
+     ```python
+     pixel = img[10, 20]  # y = 10, x = 20
+     print(pixel)         # [B, G, R] para imágenes a color
+     ```
+
+     Ten en cuenta que el primer índice corresponde a la fila (coordenada vertical) y el segundo a la columna (coordenada horizontal).
+</Steps>
+
+## Operaciones básicas sobre imágenes
+
+A continuación, presentamos transformaciones comunes que forman parte de prácticamente cualquier pipeline de visión por computadora.
+
+### Conversión a escala de grises
+
+La conversión a escala de grises es una de las operaciones más frecuentes, ya que reduce la dimensionalidad y simplifica muchos algoritmos:
+
+```python
+import cv2
+
+img = cv2.imread("image.jpg")
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+cv2.imwrite("image_gray.jpg", gray)
+```
+
+### Redimensionar imágenes
+
+OpenCV ofrece flexibilidad para redimensionar imágenes de diferentes maneras:
+
+```python
+import cv2
+
+img = cv2.imread("image.jpg")
+
+# Redimensionar a un tamaño fijo (ancho, alto)
+resized = cv2.resize(img, (640, 480))
+
+# Redimensionar con un factor de escala (mantiene proporción)
+smaller = cv2.resize(img, None, fx=0.5, fy=0.5)
+
+cv2.imwrite("image_resized.jpg", resized)
+cv2.imwrite("image_smaller.jpg", smaller)
+```
+
+### Recortar regiones de interés
+
+El recorte (cropping) permite extraer regiones específicas de una imagen utilizando la indexación de NumPy:
+
+```python
+import cv2
+
+img = cv2.imread("image.jpg")
+
+# Recortar región: [y1:y2, x1:x2]
+crop = img[100:300, 200:500]
+
+cv2.imwrite("image_crop.jpg", crop)
+```
+
+### Dibujar formas y texto
+
+OpenCV proporciona funciones para dibujar sobre imágenes, útiles para visualización y anotación:
+
+```python
+import cv2
+
+img = cv2.imread("image.jpg")
+
+# Línea: punto inicial, punto final, color (B, G, R), grosor
+cv2.line(img, (50, 50), (250, 50), (0, 255, 0), 3)
+
+# Rectángulo: esquina superior izquierda, esquina inferior derecha, color, grosor
+cv2.rectangle(img, (50, 100), (250, 250), (255, 0, 0), 2)
+
+# Círculo: centro, radio, color, grosor (-1 para relleno sólido)
+cv2.circle(img, (150, 350), 50, (0, 0, 255), -1)
+
+# Texto: texto, origen, fuente, escala, color, grosor, tipo de línea
+cv2.putText(
+    img,
+    "Hola OpenCV",
+    (50, 420),
+    cv2.FONT_HERSHEY_SIMPLEX,
+    1.0,
+    (255, 255, 255),
+    2,
+    cv2.LINE_AA,
+)
+
+cv2.imwrite("image_drawing.jpg", img)
+```
+
+## Filtros y detección de bordes
+
+### Desenfoque Gaussiano
+
+El desenfoque Gaussiano es útil para reducir ruido y suavizar imágenes:
+
+```python
+import cv2
+
+img = cv2.imread("image.jpg")
+
+# El tamaño del kernel debe ser impar (por ejemplo, 3, 5, 7, 15, ...)
+blur = cv2.GaussianBlur(img, (15, 15), 0)
+
+cv2.imwrite("image_blur.jpg", blur)
+```
+
+El tercer parámetro (0) es la desviación estándar en X; si se establece en 0, OpenCV la calcula automáticamente basándose en el tamaño del kernel.
+
+### Detección de bordes con Canny
+
+El algoritmo de Canny es uno de los métodos más populares para detectar bordes en imágenes:
+
+```python
+import cv2
+
+img = cv2.imread("image.jpg")
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+# Canny: imagen, umbral inferior, umbral superior
+edges = cv2.Canny(gray, 100, 200)
+
+cv2.imwrite("image_edges.jpg", edges)
+```
+
+Los umbrales controlan la sensibilidad de la detección: valores más bajos detectan más bordes, mientras que valores más altos son más selectivos.
+
+## Espacios de color
+
+Trabajar con diferentes espacios de color es fundamental para tareas como segmentación, detección de objetos y análisis de color:
+
+```python
+import cv2
+
+img = cv2.imread("image.jpg")
+
+# Conversiones a diferentes espacios de color
+img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+
+cv2.imwrite("image_rgb.jpg", img_rgb)
+cv2.imwrite("image_hsv.jpg", img_hsv)
+cv2.imwrite("image_lab.jpg", img_lab)
+```
+
+Cada espacio de color tiene sus ventajas: HSV es útil para segmentación basada en color, mientras que LAB es más perceptualmente uniforme.
+
+## Trabajar con video
+
+### Leer un archivo de video
+
+OpenCV permite procesar videos frame por frame:
+
+```python
+import cv2
+
+cap = cv2.VideoCapture("video.mp4")  # Reemplaza con la ruta de tu video
+
+if not cap.isOpened():
+    raise RuntimeError("No se pudo abrir el archivo de video.")
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    cv2.imshow("Video", frame)
+
+    # Presiona 'q' para salir
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+```
+
+El método `cap.read()` retorna una tupla: un booleano que indica si se leyó correctamente el frame, y el frame mismo.
+
+### Capturar desde la webcam
+
+Para capturar video en tiempo real desde una cámara web:
+
+```python
+import cv2
+
+# 0 es generalmente la cámara por defecto
+cap = cv2.VideoCapture(0)
+
+if not cap.isOpened():
+    raise RuntimeError("No se pudo abrir la webcam.")
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    cv2.imshow("Webcam", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+```
+
+<Aside type="tip">
+Asegúrate de liberar el recurso con `cap.release()` al finalizar.
+</Aside>
+
+## Mini pipeline completo de ejemplo
+
+A continuación, presentamos un ejemplo que integra varias operaciones típicas en un pipeline completo:
+
+1. Lectura de una imagen.
+2. Redimensionamiento.
+3. Aplicación de desenfoque.
+4. Detección de bordes.
+5. Encontrar contornos.
+6. Dibujar cajas delimitadoras alrededor de los objetos detectados.
+
+```python
+import cv2
+
+# 1. Leer imagen
+img = cv2.imread("shapes.png")  # Usa una imagen con formas simples
+if img is None:
+    raise FileNotFoundError("No se pudo cargar shapes.png")
+
+# 2. Redimensionar (opcional, para estandarizar el tamaño)
+img_resized = cv2.resize(img, (640, 480))
+
+# 3. Convertir a escala de grises y aplicar desenfoque
+gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
+blur = cv2.GaussianBlur(gray, (5, 5), 0)
+
+# 4. Detección de bordes
+edges = cv2.Canny(blur, 50, 150)
+
+# 5. Encontrar contornos
+contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+# 6. Dibujar cajas delimitadoras para cada contorno
+output = img_resized.copy()
+for cnt in contours:
+    x, y, w, h = cv2.boundingRect(cnt)
+    cv2.rectangle(output, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+cv2.imwrite("shapes_detected.jpg", output)
+```
+
+Este tipo de pipeline constituye la base de muchas aplicaciones reales, como detección de objetos simples, inspección visual automatizada y análisis de formas.
+
+## Detección básica de rostros con Haar Cascades
+
+Aunque existen métodos más modernos (como los basados en deep learning), los clasificadores en cascada de Haar siguen siendo una forma sencilla de comenzar con detección de rostros:
+
+```python
+import cv2
+
+# Cargar el detector de rostros pre-entrenado
+face_cascade = cv2.CascadeClassifier(
+    cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+)
+
+img = cv2.imread("people.jpg")
+if img is None:
+    raise FileNotFoundError("No se pudo cargar people.jpg")
+
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+# Detectar rostros: retorna una lista de tuplas (x, y, w, h)
+faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
+
+# Dibujar rectángulos alrededor de los rostros detectados
+for (x, y, w, h) in faces:
+    cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
+
+cv2.imwrite("people_faces.jpg", img)
+```
+
+Los parámetros `scaleFactor` y `minNeighbors` controlan la sensibilidad y precisión de la detección. Ajusta estos valores según tus necesidades.
+
+## Problemas comunes y buenas prácticas
+
+### Rutas de archivos
+
+Si `cv2.imread()` devuelve `None`, casi siempre se debe a un problema con la ruta del archivo.
+
+**Solución**: Utiliza rutas absolutas o verifica el directorio de trabajo actual:
+
+```python
+import os
+print(os.getcwd())  # Muestra el directorio de trabajo actual
+```
+
+### Ventanas que no aparecen
+
+En algunos entornos (como Jupyter Notebooks o ciertos IDEs), `cv2.imshow()` puede no funcionar correctamente.
+
+**Solución**: Utiliza Matplotlib para visualizar imágenes en estos casos:
+
+```python
+import cv2
+import matplotlib.pyplot as plt
+
+img_bgr = cv2.imread("image.jpg")
+img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+
+plt.imshow(img_rgb)
+plt.axis("off")
+plt.show()
+```
+
+### Tipos de datos y rangos de valores
+
+Muchos algoritmos de OpenCV asumen que las imágenes están en formato `uint8` con valores entre 0 y 255.
+
+<Aside type="caution">
+Si normalizas imágenes a `float32` o `float64` (valores entre 0.0 y 1.0), asegúrate de convertir de vuelta al rango correcto antes de guardar o mostrar:
+</Aside>
+
+```python
+# Si trabajas con imágenes normalizadas
+img_normalized = img.astype(np.float32) / 255.0
+# ... procesamiento ...
+# Convertir de vuelta para guardar
+img_uint8 = (img_normalized * 255).astype(np.uint8)
+cv2.imwrite("output.jpg", img_uint8)
+```
+
+### Rendimiento básico
+
+Para procesamiento de video en tiempo real, optimiza tu código:
+
+- **Evita operaciones innecesarias dentro del loop**: Precalcula valores que no cambian entre frames.
+- **Mantén el procesamiento por frame lo más simple posible**: Solo incrementa la complejidad si el rendimiento lo permite.
+- **Considera el redimensionamiento**: Procesar frames más pequeños es significativamente más rápido.
+
+```python
+# Ejemplo: redimensionar antes de procesar para mejorar rendimiento
+cap = cv2.VideoCapture(0)
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+    
+    # Redimensionar para procesamiento más rápido
+    small_frame = cv2.resize(frame, (320, 240))
+    # ... procesar small_frame ...
+    
+    # Redimensionar de vuelta para visualización
+    display_frame = cv2.resize(small_frame, (640, 480))
+    cv2.imshow("Video", display_frame)
+    
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+```
