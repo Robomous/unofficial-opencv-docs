@@ -5,6 +5,10 @@ template: splash
 hero:
   title: OpenCV Documentation
   tagline: A modern reference for OpenCV with practical examples, clear explanations, and up-to-date content. Currently featuring comprehensive Python API documentation.
+  image:
+    dark: ../../assets/opencv_logo_white.svg
+    light: ../../assets/opencv_logo.svg
+    alt: OpenCV Logo
   actions:
     - text: Get Started
       link: /getting-started/what-is-opencv/
@@ -14,11 +18,6 @@ hero:
 ---
 
 import { Card, CardGrid, Aside } from '@astrojs/starlight/components';
-
-<div style="text-align: center; margin: 2rem 0;">
-  <img src="/assets/opencv_logo.svg" alt="OpenCV Logo" class="dark:sl-hidden" style="max-width: 300px; margin: 0 auto;" />
-  <img src="/assets/opencv_logo_white.svg" alt="OpenCV Logo" class="light:sl-hidden" style="max-width: 300px; margin: 0 auto;" />
-</div>
 
 ## About Robomous
 

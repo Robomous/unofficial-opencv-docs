@@ -22,3 +22,35 @@
     /* Do not set display - let Starlight's light:sl-hidden/dark:sl-hidden classes control visibility */
   }
 }
+
+/* Hero section: Position image on the right side */
+.sl-hero {
+  display: flex;
+  align-items: center;
+  gap: 3rem;
+  flex-wrap: wrap;
+}
+
+.sl-hero > div:first-child {
+  flex: 1;
+  min-width: 300px;
+}
+
+.sl-hero picture,
+.sl-hero img {
+  flex-shrink: 0;
+  max-width: 100px;
+  height: auto;
+}
+
+@media (max-width: 768px) {
+  .sl-hero {
+    flex-direction: column;
+    text-align: center;
+    gap: 2rem;
+  }
+
+  .sl-hero > div:first-child {
+    min-width: 100%;
+  }
+}
