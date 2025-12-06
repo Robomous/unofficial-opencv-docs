@@ -18,21 +18,25 @@ Documentation focused on OpenCV for Python. An open source project by Robomous f
 │   ├── content/
 │   │   └── docs/
 │   │       ├── index.md              # English homepage
-│   │       ├── start-here/           # English "Start Here" section
-│   │       │   ├── getting-started.md
-│   │       │   ├── installation.md
-│   │       │   └── what-is-opencv.md
+│   │       ├── getting-started/     # English "Getting Started" section
+│   │       │   ├── what-is-opencv.mdx
+│   │       │   ├── installation.mdx
+│   │       │   └── quick-start.mdx
 │   │       ├── guides/               # English "Guides" section
 │   │       │   ├── index.md
+│   │       │   ├── core-concepts/     # Core Concepts subsection
+│   │       │   │   └── introduction-to-computer-vision.mdx
 │   │       │   └── image-preprocessing.md
 │   │       └── es/                   # Spanish content
 │   │           ├── index.md          # Spanish homepage
-│   │           ├── start-here/
-│   │           │   ├── getting-started.md
-│   │           │   ├── installation.md
-│   │           │   └── what-is-opencv.md
+│   │           ├── getting-started/
+│   │           │   ├── what-is-opencv.mdx
+│   │           │   ├── installation.mdx
+│   │           │   └── quick-start.mdx
 │   │           └── guides/
 │   │               ├── index.md
+│   │               ├── core-concepts/     # Core Concepts subsection
+│   │               │   └── introduction-to-computer-vision.mdx
 │   │               └── image-preprocessing.md
 │   ├── content.config.ts
 │   └── styles/

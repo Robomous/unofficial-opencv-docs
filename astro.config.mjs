@@ -48,20 +48,28 @@ export default defineConfig({
 				{
 					label: 'Getting Started',
 					translations: {
-						es: 'Comenzando'
+						'es-MX': 'Comenzando'
 					},
-					// Starlight must autogenerate from the `getting-started` directory.
 					autogenerate: {
 						directory: 'getting-started'
 					}
 				},
 				{
-					label: 'Guides',
+					label: 'Fundamentals',
 					translations: {
-						es: 'Guías'
+						'es-MX': 'Fundamentos'
 					},
 					autogenerate: {
-						directory: 'guides'
+						directory: 'fundamentals'
+					}
+				},
+				{
+					label: 'Image Preprocessing',
+					translations: {
+						'es-MX': 'Preprocesamiento de Imágenes'
+					},
+					autogenerate: {
+						directory: 'image-preprocessing'
 					}
 				}
 			]

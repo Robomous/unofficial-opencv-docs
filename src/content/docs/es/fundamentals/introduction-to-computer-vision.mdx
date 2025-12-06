@@ -1,0 +1,214 @@
+---
+title: Introducción a la Visión por Computadora
+description: Aprende qué es la visión por computadora, cómo se relaciona con los gráficos por computadora, y comprende los conceptos fundamentales que forman la base de OpenCV.
+sidebar:
+  order: 0
+---
+
+import { Aside, Card, CardGrid } from '@astrojs/starlight/components';
+
+La visión por computadora es un campo de la inteligencia artificial que permite a las computadoras interpretar y entender información visual del mundo, como imágenes y videos, de manera similar a la visión humana. Antes de sumergirse en OpenCV, es esencial entender qué es la visión por computadora, cómo se relaciona con los gráficos por computadora, y por qué estos campos son fundamentales para la tecnología moderna.
+
+## ¿Qué es la Visión por Computadora?
+
+La visión por computadora es un campo interdisciplinario que se enfoca en permitir que las máquinas extraigan información significativa de datos visuales. El objetivo principal es automatizar tareas que el sistema visual humano puede realizar, tales como:
+
+- **Reconocimiento y detección de objetos**: Identificar y localizar objetos dentro de imágenes o flujos de video
+- **Comprensión de escenas**: Interpretar el contexto y significado de escenas visuales
+- **Análisis de imágenes**: Extraer características, patrones e información de imágenes
+- **Seguimiento de movimiento**: Seguir objetos o personas a través de frames de video
+- **Reconstrucción 3D**: Construir modelos tridimensionales a partir de imágenes bidimensionales
+
+<Aside type="tip">
+La visión por computadora a menudo se describe como el "problema inverso" de los gráficos por computadora. Mientras que los gráficos por computadora crean imágenes a partir de datos, la visión por computadora extrae datos de imágenes.
+</Aside>
+
+## Aplicaciones de la Visión por Computadora
+
+La visión por computadora se ha vuelto ubicua en la tecnología moderna, impulsando aplicaciones en numerosas industrias:
+
+<CardGrid>
+  <Card title="Vehículos Autónomos" icon="car">
+    Los autos autónomos usan visión por computadora para identificar objetos, interpretar señales de tráfico, detectar peatones y navegar por las carreteras de manera segura.
+  </Card>
+  <Card title="Imágenes Médicas" icon="stethoscope">
+    Analizar imágenes médicas (rayos X, resonancias magnéticas, tomografías) para detectar anomalías, asistir en diagnósticos y planificar tratamientos.
+  </Card>
+  <Card title="Inspección Industrial" icon="factory">
+    Control de calidad en manufactura, inspeccionando automáticamente productos en busca de defectos durante los procesos de producción.
+  </Card>
+  <Card title="Seguridad y Vigilancia" icon="shield">
+    Monitoreo en tiempo real, reconocimiento facial y detección de anomalías en sistemas de vigilancia.
+  </Card>
+  <Card title="Agricultura" icon="leaf">
+    Monitorear la salud de cultivos, detectar enfermedades, optimizar la cosecha y gestionar recursos agrícolas.
+  </Card>
+  <Card title="Realidad Aumentada" icon="glasses">
+    Superponer información digital sobre entornos del mundo real, permitiendo experiencias interactivas.
+  </Card>
+</CardGrid>
+
+## ¿Qué son los Gráficos por Computadora?
+
+Los gráficos por computadora son el campo de la ciencia de la computación que se enfoca en crear, manipular y renderizar contenido visual usando métodos computacionales. Abarca tanto imágenes bidimensionales (2D) como tridimensionales (3D) y animaciones, facilitando la visualización de datos y la creación de entornos virtuales.
+
+Los objetivos principales de los gráficos por computadora incluyen:
+
+- **Renderizado**: Generar imágenes a partir de modelos 3D o descripciones de escenas
+- **Modelado**: Crear representaciones digitales de objetos y entornos
+- **Animación**: Crear movimiento y transformaciones a lo largo del tiempo
+- **Visualización**: Representar datos en formas visuales para mejor comprensión
+
+## Aplicaciones de los Gráficos por Computadora
+
+Los gráficos por computadora son fundamentales para muchas industrias y aplicaciones:
+
+<CardGrid>
+  <Card title="Entretenimiento" icon="film">
+    Crear animaciones realistas, efectos visuales y entornos inmersivos para películas, videojuegos y realidad virtual.
+  </Card>
+  <Card title="Diseño Asistido por Computadora" icon="ruler">
+    Herramientas de diseño de ingeniería y arquitectura para modelar edificios, vehículos y productos complejos.
+  </Card>
+  <Card title="Visualización Científica" icon="microscope">
+    Representar datos científicos complejos, como estructuras moleculares o patrones meteorológicos, en formas visuales.
+  </Card>
+  <Card title="Imágenes Médicas" icon="heart">
+    Generar imágenes detalladas a partir de resonancias magnéticas y tomografías para ayudar en diagnósticos y planificación de tratamientos.
+  </Card>
+  <Card title="Educación y Entrenamiento" icon="graduation-cap">
+    Aprendizaje interactivo a través de simulaciones y laboratorios virtuales, mejorando las experiencias educativas.
+  </Card>
+  <Card title="Diseño Gráfico" icon="palette">
+    Crear contenido visual para anuncios, sitios web y medios impresos usando herramientas de edición de imágenes y gráficos vectoriales.
+  </Card>
+</CardGrid>
+
+## Similitudes Entre Visión por Computadora y Gráficos por Computadora
+
+A pesar de sus diferentes objetivos, la visión por computadora y los gráficos por computadora comparten varias características fundamentales:
+
+### Fundamentos Matemáticos
+
+Ambos campos dependen en gran medida de modelos matemáticos y algoritmos, particularmente en áreas como:
+
+- **Geometría**: Entender formas, transformaciones y relaciones espaciales
+- **Fotometría**: Modelar cómo la luz interactúa con superficies y materiales
+- **Álgebra lineal**: Operaciones matriciales para transformaciones y proyecciones
+- **Cálculo**: Técnicas de optimización para varios algoritmos
+
+### Naturaleza Interdisciplinaria
+
+Ambos campos se intersectan con múltiples disciplinas:
+
+- **Inteligencia Artificial**: Técnicas de aprendizaje automático se usan en ambos campos
+- **Interacción Humano-Computadora**: Entender cómo los humanos perciben e interactúan con información visual
+- **Procesamiento de Señales**: Técnicas para analizar y manipular datos visuales
+- **Física**: Entender la luz, materiales y fenómenos físicos
+
+### Superposición Tecnológica
+
+Los avances en un campo a menudo benefician al otro:
+
+- **Renderizado inverso**: Las técnicas de gráficos por computadora para renderizado realista pueden mejorar los conjuntos de datos de entrenamiento usados en visión por computadora
+- **Renderizado diferenciable**: Permite que los modelos de visión por computadora trabajen con representaciones 3D
+- **Generación de datos sintéticos**: Los gráficos por computadora pueden crear datos de entrenamiento realistas para sistemas de visión por computadora
+- **Renderizado neuronal**: Combina técnicas de ambos campos para crear sistemas visuales más realistas y controlables
+
+<Aside type="note">
+La relación entre visión por computadora y gráficos por computadora a menudo se describe como "problemas inversos." Los gráficos por computadora resuelven el problema directo (datos → imagen), mientras que la visión por computadora resuelve el problema inverso (imagen → datos).
+</Aside>
+
+## Diferencias Clave
+
+Aunque la visión por computadora y los gráficos por computadora están estrechamente relacionados, difieren en formas fundamentales:
+
+### Dirección del Procesamiento
+
+**Visión por Computadora**: 
+- **Entrada**: Imágenes o video del mundo real
+- **Salida**: Datos, información o comprensión
+- **Proceso**: Analizar e interpretar datos visuales
+- **Objetivo**: Extraer información significativa de imágenes
+
+**Gráficos por Computadora**:
+- **Entrada**: Datos, modelos o descripciones de escenas
+- **Salida**: Imágenes o representaciones visuales
+- **Proceso**: Generar y renderizar contenido visual
+- **Objetivo**: Crear representaciones visuales a partir de datos
+
+### Objetivos Principales
+
+| Visión por Computadora | Gráficos por Computadora |
+|----------------|-------------------|
+| Entender información visual existente | Crear nuevo contenido visual |
+| Extraer datos de imágenes | Generar imágenes de datos |
+| Analizar e interpretar | Sintetizar y renderizar |
+| Reconocimiento y detección | Modelado y animación |
+
+### Flujos de Trabajo Típicos
+
+**Flujo de Trabajo de Visión por Computadora**:
+1. Capturar o recibir una imagen/video
+2. Preprocesar los datos visuales
+3. Extraer características o detectar objetos
+4. Analizar e interpretar la información
+5. Tomar decisiones o proporcionar insights
+
+**Flujo de Trabajo de Gráficos por Computadora**:
+1. Definir o modelar una escena u objeto
+2. Configurar iluminación y materiales
+3. Aplicar transformaciones y animaciones
+4. Renderizar la escena para crear una imagen
+5. Post-procesar para efectos deseados
+
+## Por Qué Esto Importa para OpenCV
+
+Entender la distinción entre visión por computadora y gráficos por computadora es crucial al trabajar con OpenCV porque:
+
+1. **Enfoque de OpenCV**: OpenCV es principalmente una biblioteca de visión por computadora, diseñada para analizar y procesar imágenes del mundo real, no para crear gráficos sintéticos.
+
+2. **Herramientas Complementarias**: Mientras OpenCV maneja tareas de visión, puedes necesitar bibliotecas de gráficos por computadora (como OpenGL) para propósitos de renderizado o visualización.
+
+3. **Datos Sintéticos**: Entender los gráficos por computadora ayuda al generar datos de entrenamiento sintéticos para modelos de visión por computadora.
+
+4. **Problemas Inversos**: Muchas tareas de visión por computadora pueden pensarse como problemas de gráficos inversos, lo que ayuda a entender las matemáticas subyacentes.
+
+5. **Aplicaciones Híbridas**: Las aplicaciones modernas a menudo combinan ambos campos—usando visión por computadora para entender el mundo real y gráficos por computadora para superponer o visualizar información.
+
+## Referencias Académicas
+
+Para aquellos interesados en un estudio más profundo, aquí hay algunos recursos fundamentales:
+
+### Visión por Computadora
+
+- **"Computer Vision: Algorithms and Applications"** por Richard Szeliski (2010) - Un libro de texto completo que cubre técnicas y aplicaciones de visión por computadora
+- **"Computer Vision: A Modern Approach"** por David A. Forsyth y Jean Ponce (2011) - Cubre conceptos fundamentales y desarrollos modernos
+- **IEEE Transactions on Pattern Analysis and Machine Intelligence (PAMI)** - Revista líder para investigación en visión por computadora
+- **International Journal of Computer Vision (IJCV)** - Se enfoca en todos los aspectos de la investigación en visión por computadora
+- **Conference on Computer Vision and Pattern Recognition (CVPR)** - Conferencia anual principal para investigación en visión por computadora
+
+### Gráficos por Computadora
+
+- **"Computer Graphics: Principles and Practice"** por Foley, van Dam, Feiner y Hughes - Libro de texto completo que cubre temas fundamentales y avanzados
+- **IEEE Computer Graphics and Applications** - Revista bimestral con los últimos desarrollos en gráficos por computadora
+- **ACM Transactions on Graphics (TOG)** - Revista líder para investigación en gráficos por computadora
+- **SIGGRAPH** - Conferencia anual principal para gráficos por computadora
+
+### Problemas Inversos e Intersecciones
+
+- **"A Signal-Processing Framework for Inverse Rendering"** por Ravi Ramamoorthi y Pat Hanrahan (2001) - Marco matemático para renderizado inverso
+- **"Inverse Rendering for Computer Graphics"** por Steve Marschner (1998) - Tesis de doctorado sobre problemas de renderizado inverso
+- **"Vision as Inverse Graphics"** - Investigación que explora la visión como un problema de gráficos inversos
+
+## Próximos Pasos
+
+Ahora que entiendes qué es la visión por computadora y cómo se relaciona con los gráficos por computadora, estás listo para:
+
+1. **[Instalar OpenCV](/es/getting-started/installation/)** - Configurar OpenCV en tu entorno Python
+2. **[Guía de Inicio Rápido](/es/getting-started/quick-start/)** - Comenzar a trabajar con OpenCV a través de ejemplos prácticos
+3. Explorar las capacidades de OpenCV para aplicaciones de visión por computadora del mundo real
+
+<Aside type="tip">
+Recuerda: La visión por computadora extrae información de imágenes, mientras que los gráficos por computadora crean imágenes a partir de información. OpenCV te ayuda a hacer lo primero—analizar y entender datos visuales del mundo real.
+</Aside>

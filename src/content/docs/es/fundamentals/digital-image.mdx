@@ -1,0 +1,274 @@
+---
+title: Imagen Digital
+description: Comprende qué son las imágenes digitales, cómo se representan en las computadoras, y los conceptos fundamentales de píxeles, resolución y profundidad de color que son esenciales para trabajar con OpenCV.
+sidebar:
+  order: 1
+---
+
+import { Aside, Card, CardGrid, Steps } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import rgbMatrixImage from '../../../../assets/images/rgb-matrix.png';
+
+Una **imagen digital** es una representación de una imagen bidimensional como un conjunto finito de valores digitales, conocidos como elementos de imagen o **píxeles**. Cada píxel contiene valores cuantizados que representan el brillo de un color dado en un punto específico. Entender cómo funcionan las imágenes digitales es fundamental para la visión por computadora y el procesamiento de imágenes con OpenCV.
+
+## ¿Qué es una Imagen Digital?
+
+Una imagen digital es esencialmente una cuadrícula de píxeles organizados en filas y columnas. Cada píxel contiene valores numéricos que representan información de color y brillo. A diferencia de las imágenes analógicas (como fotografías o pinturas), las imágenes digitales son discretas, lo que significa que están compuestas por un número finito de elementos que pueden ser almacenados, procesados y manipulados por computadoras.
+
+<Aside type="tip">
+En OpenCV y la mayoría de las bibliotecas de visión por computadora, las imágenes digitales se representan como matrices o arreglos, donde cada elemento corresponde al valor de un píxel.
+</Aside>
+
+## Píxeles: Los Bloques Fundamentales
+
+Un **píxel** (abreviatura de "elemento de imagen") es la unidad más pequeña de una imagen digital. Cada píxel representa un solo punto en la imagen y contiene información sobre su color y brillo.
+
+### Características de los Píxeles
+
+- **Posición**: Cada píxel tiene una ubicación específica en la imagen, identificada por su fila (coordenada y) y columna (coordenada x)
+- **Valor**: El valor del píxel representa su color o intensidad
+- **Naturaleza Discreta**: Los píxeles son unidades discretas—no hay "medio píxel" o valores entre píxeles adyacentes
+
+<Aside type="note">
+En OpenCV, las coordenadas de los píxeles siguen una convención de matriz: la primera coordenada es la fila (eje y, vertical), y la segunda coordenada es la columna (eje x, horizontal). Esto es diferente de las coordenadas cartesianas donde x viene primero.
+</Aside>
+
+## Resolución
+
+La **resolución** se refiere al número de píxeles en una imagen, típicamente expresada como ancho × alto. Por ejemplo:
+
+- **1920 × 1080**: Resolución Full HD con 2,073,600 píxeles
+- **3840 × 2160**: Resolución 4K con 8,294,400 píxeles
+- **640 × 480**: Resolución VGA con 307,200 píxeles
+
+### Entendiendo la Resolución
+
+<CardGrid>
+  <Card title="Mayor Resolución" icon="zoom-in">
+    Más píxeles significan mayor detalle y claridad, pero también archivos más grandes y más potencia de procesamiento requerida.
+  </Card>
+  <Card title="Menor Resolución" icon="zoom-out">
+    Menos píxeles significan archivos más pequeños y procesamiento más rápido, pero menos detalle y posible pixelación cuando se amplían.
+  </Card>
+  <Card title="Relación de Aspecto" icon="ruler">
+    La relación de ancho a alto (ej., 16:9, 4:3) determina la forma de la imagen y cómo se muestra en diferentes pantallas.
+  </Card>
+</CardGrid>
+
+## Profundidad de Bits y Profundidad de Color
+
+La **profundidad de bits** (también llamada **profundidad de color**) indica el número de bits usados para representar el color de cada píxel. Profundidades de bits más altas permiten más colores y gradaciones más finas, resultando en imágenes más suaves con menos bandas.
+
+### Profundidades de Bits Comunes
+
+<Steps>
+  1. **1-bit (Monocromo)**
+     Cada píxel está representado por un solo bit, permitiendo dos valores posibles: negro (0) o blanco (1). Usado para imágenes simples en blanco y negro y texto.
+
+  2. **8-bit en Escala de Grises**
+     Cada píxel tiene 8 bits, permitiendo 256 tonos de gris (2^8 = 256). Los valores van de 0 (negro) a 255 (blanco). Este es el formato más común para imágenes en escala de grises en OpenCV.
+
+  3. **24-bit Color (Color Verdadero)**
+     Cada píxel comprende 8 bits para cada uno de los canales rojo, verde y azul, totalizando 24 bits por píxel. Esto permite 16,777,216 colores posibles (2^24). Este es el formato estándar para imágenes en color.
+
+  4. **32-bit Color**
+     Similar al color de 24 bits pero incluye un canal alfa adicional de 8 bits para información de transparencia. Usado cuando se necesita transparencia.
+
+  5. **Profundidades de Bits Más Altas**
+     El procesamiento de imágenes profesional a menudo usa color de 48 bits (16 bits por canal) o incluso más para máxima precisión de color y evitar bandas en gradientes.
+</Steps>
+
+<Aside type="caution">
+Las profundidades de bits más altas proporcionan mejor precisión de color pero también resultan en archivos más grandes, ya que se requiere más datos para almacenar la información de color adicional. Elige la profundidad de bits apropiada según las necesidades de tu aplicación.
+</Aside>
+
+## Representación de Imágenes en Computadoras
+
+En visión por computadora y procesamiento de imágenes, las imágenes digitales se representan como **matrices** o **arreglos**, donde cada elemento corresponde al valor de intensidad o color de un píxel.
+
+### Imágenes en Escala de Grises
+
+Las imágenes en escala de grises se representan como **matrices bidimensionales**:
+
+```
+Matriz de Imagen (8-bit escala de grises):
+┌─────────────────┐
+│ 120  150  180   │  Fila 0
+│ 100  130  160   │  Fila 1
+│  80  110  140   │  Fila 2
+└─────────────────┘
+```
+
+Cada valor representa la intensidad de un píxel, típicamente desde 0 (negro) hasta 255 (blanco).
+
+### Imágenes en Color
+
+Las imágenes en color se representan como **matrices tridimensionales**, con la tercera dimensión correspondiente a los canales de color:
+
+```
+Imagen en Color (formato BGR en OpenCV):
+Canal 0 (Azul)    Canal 1 (Verde)   Canal 2 (Rojo)
+┌─────────┐         ┌─────────┐         ┌─────────┐
+│ 200 150 │         │ 100  80 │         │  50  30 │
+│ 180 120 │         │  90  70 │         │  40  20 │
+└─────────┘         └─────────┘         └─────────┘
+```
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image src={rgbMatrixImage} alt="Representación de Matriz RGB" fit="contain" />
+</div>
+
+<Aside type="caution">
+OpenCV usa el orden de color **BGR** (Azul, Verde, Rojo) por defecto, que es diferente de muchas otras bibliotecas que usan **RGB** (Rojo, Verde, Azul). Esto es importante recordar al trabajar con imágenes de otras fuentes o mostrarlas con bibliotecas como Matplotlib.
+</Aside>
+
+## Representación de Imágenes Digitales en OpenCV
+
+En OpenCV (Python), las imágenes se representan como **arreglos NumPy**. Esto las hace fáciles de manipular usando operaciones de NumPy.
+
+### Estructura de Imágenes en OpenCV
+
+```python
+import cv2
+import numpy as np
+
+# Leer una imagen
+img = cv2.imread('imagen.jpg')
+
+# Verificar propiedades de la imagen
+print(f"Forma: {img.shape}")        # (altura, ancho, canales)
+print(f"Tipo de dato: {img.dtype}")  # uint8 (entero sin signo de 8 bits)
+print(f"Tamaño: {img.size}")         # Número total de elementos
+```
+
+### Accediendo a Valores de Píxeles
+
+```python
+# Para imágenes en escala de grises (arreglo 2D)
+valor_pixel = img[y, x]  # y es fila, x es columna
+
+# Para imágenes en color (arreglo 3D)
+azul = img[y, x, 0]      # Canal BGR 0 (Azul)
+verde = img[y, x, 1]     # Canal BGR 1 (Verde)
+rojo = img[y, x, 2]      # Canal BGR 2 (Rojo)
+
+# O obtener todos los canales a la vez
+valores_bgr = img[y, x]  # Retorna [B, G, R]
+```
+
+### Creando Imágenes Programáticamente
+
+```python
+# Crear una imagen negra (escala de grises)
+img_negra = np.zeros((480, 640), dtype=np.uint8)
+
+# Crear una imagen negra (color)
+img_negra_color = np.zeros((480, 640, 3), dtype=np.uint8)
+
+# Crear una imagen blanca
+img_blanca = np.ones((480, 640), dtype=np.uint8) * 255
+
+# Crear una imagen roja (formato BGR)
+img_roja = np.zeros((480, 640, 3), dtype=np.uint8)
+img_roja[:, :, 2] = 255  # Establecer canal Rojo al máximo
+```
+
+## Formatos de Archivo de Imagen
+
+Las imágenes digitales pueden almacenarse en varios formatos de archivo, cada uno con diferentes características:
+
+<CardGrid>
+  <Card title="JPEG" icon="file-image">
+    Formato de **compresión con pérdida** ideal para fotografías. Archivos más pequeños pero con alguna pérdida de calidad. No soporta transparencia. Ampliamente usado para imágenes web.
+  </Card>
+  <Card title="PNG" icon="file-image">
+    Formato de **compresión sin pérdida** que preserva todos los datos de la imagen. Soporta transparencia vía canal alfa. Archivos más grandes pero calidad perfecta. Ideal para gráficos y logos.
+  </Card>
+  <Card title="TIFF" icon="file-image">
+    Soporta tanto compresión **sin pérdida como con pérdida**. Preferido en entornos profesionales para imágenes de alta calidad, particularmente para impresión y archivado. Puede ser muy grande cuando no está comprimido.
+  </Card>
+  <Card title="BMP" icon="file-image">
+    Formato **sin comprimir** que almacena datos de píxeles en bruto. Archivos muy grandes pero sin pérdida de calidad. Raramente usado en aplicaciones modernas debido al tamaño.
+  </Card>
+  <Card title="WebP" icon="file-image">
+    Formato moderno con **compresión superior** comparado con JPEG y PNG. Soporta tanto compresión con pérdida como sin pérdida, así como transparencia. Creciente en popularidad para uso web.
+  </Card>
+  <Card title="GIF" icon="file-image">
+    Formato de **compresión sin pérdida** limitado a 256 colores. Soporta animación y transparencia. Mejor para gráficos simples y animaciones.
+  </Card>
+</CardGrid>
+
+### Eligiendo el Formato Correcto
+
+La elección del formato de imagen depende de tus necesidades específicas:
+
+- **Fotografías**: JPEG (para web) o TIFF (para uso profesional)
+- **Gráficos con transparencia**: PNG
+- **Impresión profesional**: TIFF
+- **Optimización web**: WebP o JPEG
+- **Animaciones simples**: GIF
+
+## Imágenes Raster vs Vectoriales
+
+Las imágenes digitales pueden categorizarse en dos tipos principales:
+
+### Imágenes Raster
+
+Las **imágenes raster** (también llamadas imágenes de mapa de bits) consisten en una cuadrícula de píxeles. Son dependientes de la resolución, lo que significa que tienen un número fijo de píxeles. Cuando se amplían más allá de su resolución, se pixelan.
+
+- Ejemplos: JPEG, PNG, BMP, TIFF
+- Mejor para: Fotografías, imágenes complejas con muchos colores
+- Usadas en: Visión por computadora, procesamiento de imágenes, fotografía
+
+### Imágenes Vectoriales
+
+Las **imágenes vectoriales** están definidas por ecuaciones matemáticas en lugar de píxeles. Pueden escalarse a cualquier tamaño sin perder calidad.
+
+- Ejemplos: SVG, AI, EPS
+- Mejor para: Logos, ilustraciones, gráficos con formas simples
+- Nota: OpenCV trabaja principalmente con imágenes raster, aunque puede leer algunos formatos vectoriales convirtiéndolos primero a raster
+
+<Aside type="note">
+OpenCV trabaja casi exclusivamente con imágenes raster. Si necesitas procesar gráficos vectoriales, primero deben convertirse (rasterizarse) a un formato basado en píxeles.
+</Aside>
+
+## Resumen de Conceptos Clave
+
+Entender las imágenes digitales involucra varios conceptos interconectados:
+
+1. **Píxeles**: Las unidades más pequeñas que componen una imagen digital
+2. **Resolución**: El número de píxeles (ancho × alto) en una imagen
+3. **Profundidad de Bits**: El número de bits usados para representar el color de cada píxel
+4. **Canales de Color**: Componentes separados (Rojo, Verde, Azul, u otros) que se combinan para formar colores
+5. **Representación Matricial**: Cómo las imágenes se almacenan y manipulan como arreglos en la memoria de la computadora
+6. **Formatos de Archivo**: Diferentes formas de codificar y comprimir datos de imagen
+
+## Por Qué Esto Importa para OpenCV
+
+Entender las imágenes digitales es crucial al trabajar con OpenCV porque:
+
+1. **Estructura de Datos**: OpenCV representa imágenes como arreglos NumPy—entender píxeles y matrices te ayuda a manipularlas efectivamente
+2. **Espacios de Color**: Conocer sobre canales de color te ayuda a entender BGR, RGB, HSV y otros espacios de color
+3. **Operaciones de Imagen**: Las operaciones a nivel de píxel se vuelven intuitivas cuando entiendes cómo están estructuradas las imágenes
+4. **Rendimiento**: Entender resolución y profundidad de bits te ayuda a optimizar operaciones de procesamiento de imágenes
+5. **Manejo de Archivos**: Conocer diferentes formatos te ayuda a elegir el correcto para leer, procesar y guardar imágenes
+
+## Próximos Pasos
+
+Ahora que entiendes las imágenes digitales, estás listo para:
+
+1. **[Trabajar con Imágenes en OpenCV](/es/getting-started/quick-start/)** - Aprende cómo leer, mostrar y guardar imágenes
+2. Explorar espacios de color y cómo OpenCV maneja diferentes representaciones de color
+3. Aprender sobre técnicas de preprocesamiento de imágenes que operan en valores de píxeles
+
+<Aside type="tip">
+Recuerda: En OpenCV, las imágenes son arreglos NumPy. Esto significa que puedes usar todas las operaciones de NumPy para manipulación de imágenes, haciéndolo una herramienta poderosa para tareas de visión por computadora.
+</Aside>
+
+## Referencias
+
+- [Imagen Digital - Wikipedia](https://es.wikipedia.org/wiki/Imagen_digital)
+- [Procesamiento Digital de Imágenes - Wikipedia](https://es.wikipedia.org/wiki/Procesamiento_digital_de_im%C3%A1genes)
+- [Tutorial de Profundidad de Bits - Cambridge in Colour](https://www.cambridgeincolour.com/tutorials/bit-depth.htm)
+- [OpenCV Mat - El Contenedor Básico de Imágenes](https://docs.opencv.org/3.4/d6/d6d/tutorial_mat_the_basic_image_container.html)
+- [Píxeles, Bits y Modos de Color - ScienceDirect](https://www.sciencedirect.com/topics/computer-science/bits-per-pixels)

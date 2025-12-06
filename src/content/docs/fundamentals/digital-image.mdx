@@ -1,0 +1,274 @@
+---
+title: Digital Image
+description: Understand what digital images are, how they are represented in computers, and the fundamental concepts of pixels, resolution, and color depth that are essential for working with OpenCV.
+sidebar:
+  order: 1
+---
+
+import { Aside, Card, CardGrid, Steps } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import rgbMatrixImage from '../../../assets/images/rgb-matrix.png';
+
+A **digital image** is a representation of a two-dimensional image as a finite set of digital values, known as picture elements or **pixels**. Each pixel holds quantized values that represent the brightness of a given color at a specific point. Understanding how digital images work is fundamental to computer vision and image processing with OpenCV.
+
+## What is a Digital Image?
+
+A digital image is essentially a grid of pixels arranged in rows and columns. Each pixel contains numerical values that represent color and brightness information. Unlike analog images (like photographs or paintings), digital images are discrete, meaning they are composed of a finite number of elements that can be stored, processed, and manipulated by computers.
+
+<Aside type="tip">
+In OpenCV and most computer vision libraries, digital images are represented as matrices or arrays, where each element corresponds to a pixel's value.
+</Aside>
+
+## Pixels: The Building Blocks
+
+A **pixel** (short for "picture element") is the smallest unit of a digital image. Each pixel represents a single point in the image and contains information about its color and brightness.
+
+### Pixel Characteristics
+
+- **Position**: Each pixel has a specific location in the image, identified by its row (y-coordinate) and column (x-coordinate)
+- **Value**: The pixel's value represents its color or intensity
+- **Discrete Nature**: Pixels are discrete units—there are no "half pixels" or values between adjacent pixels
+
+<Aside type="note">
+In OpenCV, pixel coordinates follow a matrix convention: the first coordinate is the row (y-axis, vertical), and the second coordinate is the column (x-axis, horizontal). This is different from Cartesian coordinates where x comes first.
+</Aside>
+
+## Resolution
+
+**Resolution** refers to the number of pixels in an image, typically expressed as width × height. For example:
+
+- **1920 × 1080**: Full HD resolution with 2,073,600 pixels
+- **3840 × 2160**: 4K resolution with 8,294,400 pixels
+- **640 × 480**: VGA resolution with 307,200 pixels
+
+### Understanding Resolution
+
+<CardGrid>
+  <Card title="Higher Resolution" icon="zoom-in">
+    More pixels mean greater detail and clarity, but also larger file sizes and more processing power required.
+  </Card>
+  <Card title="Lower Resolution" icon="zoom-out">
+    Fewer pixels mean smaller file sizes and faster processing, but less detail and potential pixelation when enlarged.
+  </Card>
+  <Card title="Aspect Ratio" icon="ruler">
+    The ratio of width to height (e.g., 16:9, 4:3) determines the image's shape and how it displays on different screens.
+  </Card>
+</CardGrid>
+
+## Bit Depth and Color Depth
+
+**Bit depth** (also called **color depth**) indicates the number of bits used to represent the color of each pixel. Higher bit depths allow for more colors and finer gradations, leading to smoother images with less banding.
+
+### Common Bit Depths
+
+<Steps>
+  1. **1-bit (Monochrome)**
+     Each pixel is represented by a single bit, allowing for two possible values: black (0) or white (1). Used for simple black-and-white images and text.
+
+  2. **8-bit Grayscale**
+     Each pixel has 8 bits, enabling 256 shades of gray (2^8 = 256). Values range from 0 (black) to 255 (white). This is the most common format for grayscale images in OpenCV.
+
+  3. **24-bit Color (True Color)**
+     Each pixel comprises 8 bits for each of the red, green, and blue channels, totaling 24 bits per pixel. This allows for 16,777,216 possible colors (2^24). This is the standard format for color images.
+
+  4. **32-bit Color**
+     Similar to 24-bit color but includes an additional 8-bit alpha channel for transparency information. Used when transparency is needed.
+
+  5. **Higher Bit Depths**
+     Professional imaging often uses 48-bit color (16 bits per channel) or even higher for maximum color precision and to avoid banding in gradients.
+</Steps>
+
+<Aside type="caution">
+Higher bit depths provide better color accuracy but also result in larger file sizes, as more data is required to store the additional color information. Choose the appropriate bit depth based on your application's needs.
+</Aside>
+
+## Image Representation in Computers
+
+In computer vision and image processing, digital images are represented as **matrices** or **arrays**, where each element corresponds to a pixel's intensity or color value.
+
+### Grayscale Images
+
+Grayscale images are represented as **two-dimensional matrices**:
+
+```
+Image Matrix (8-bit grayscale):
+┌─────────────────┐
+│ 120  150  180   │  Row 0
+│ 100  130  160   │  Row 1
+│  80  110  140   │  Row 2
+└─────────────────┘
+```
+
+Each value represents the intensity of a pixel, typically ranging from 0 (black) to 255 (white).
+
+### Color Images
+
+Color images are represented as **three-dimensional matrices**, with the third dimension corresponding to color channels:
+
+```
+Color Image (BGR format in OpenCV):
+Channel 0 (Blue)    Channel 1 (Green)   Channel 2 (Red)
+┌─────────┐         ┌─────────┐         ┌─────────┐
+│ 200 150 │         │ 100  80 │         │  50  30 │
+│ 180 120 │         │  90  70 │         │  40  20 │
+└─────────┘         └─────────┘         └─────────┘
+```
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image src={rgbMatrixImage} alt="RGB Matrix Representation" fit="contain" />
+</div>
+
+<Aside type="caution">
+OpenCV uses **BGR** (Blue, Green, Red) color order by default, which is different from many other libraries that use **RGB** (Red, Green, Blue). This is important to remember when working with images from other sources or displaying them with libraries like Matplotlib.
+</Aside>
+
+## Digital Image Representation in OpenCV
+
+In OpenCV (Python), images are represented as **NumPy arrays**. This makes them easy to manipulate using NumPy operations.
+
+### Image Structure in OpenCV
+
+```python
+import cv2
+import numpy as np
+
+# Read an image
+img = cv2.imread('image.jpg')
+
+# Check image properties
+print(f"Shape: {img.shape}")        # (height, width, channels)
+print(f"Data type: {img.dtype}")     # uint8 (8-bit unsigned integer)
+print(f"Size: {img.size}")           # Total number of elements
+```
+
+### Accessing Pixel Values
+
+```python
+# For grayscale images (2D array)
+pixel_value = img[y, x]  # y is row, x is column
+
+# For color images (3D array)
+blue = img[y, x, 0]      # BGR channel 0 (Blue)
+green = img[y, x, 1]     # BGR channel 1 (Green)
+red = img[y, x, 2]       # BGR channel 2 (Red)
+
+# Or get all channels at once
+bgr_values = img[y, x]   # Returns [B, G, R]
+```
+
+### Creating Images Programmatically
+
+```python
+# Create a black image (grayscale)
+black_img = np.zeros((480, 640), dtype=np.uint8)
+
+# Create a black image (color)
+black_color_img = np.zeros((480, 640, 3), dtype=np.uint8)
+
+# Create a white image
+white_img = np.ones((480, 640), dtype=np.uint8) * 255
+
+# Create a red image (BGR format)
+red_img = np.zeros((480, 640, 3), dtype=np.uint8)
+red_img[:, :, 2] = 255  # Set Red channel to maximum
+```
+
+## Image File Formats
+
+Digital images can be stored in various file formats, each with different characteristics:
+
+<CardGrid>
+  <Card title="JPEG" icon="file-image">
+    **Lossy compression** format ideal for photographs. Smaller file sizes but some quality loss. Does not support transparency. Widely used for web images.
+  </Card>
+  <Card title="PNG" icon="file-image">
+    **Lossless compression** format that preserves all image data. Supports transparency via alpha channel. Larger file sizes but perfect quality. Ideal for graphics and logos.
+  </Card>
+  <Card title="TIFF" icon="file-image">
+    Supports both **lossless and lossy** compression. Preferred in professional environments for high-quality images, particularly for print and archiving. Can be very large when uncompressed.
+  </Card>
+  <Card title="BMP" icon="file-image">
+    **Uncompressed** format that stores raw pixel data. Very large file sizes but no quality loss. Rarely used in modern applications due to size.
+  </Card>
+  <Card title="WebP" icon="file-image">
+    Modern format with **superior compression** compared to JPEG and PNG. Supports both lossy and lossless compression, as well as transparency. Growing in popularity for web use.
+  </Card>
+  <Card title="GIF" icon="file-image">
+    **Lossless compression** format limited to 256 colors. Supports animation and transparency. Best for simple graphics and animations.
+  </Card>
+</CardGrid>
+
+### Choosing the Right Format
+
+The choice of image format depends on your specific needs:
+
+- **Photographs**: JPEG (for web) or TIFF (for professional use)
+- **Graphics with transparency**: PNG
+- **Professional printing**: TIFF
+- **Web optimization**: WebP or JPEG
+- **Simple animations**: GIF
+
+## Raster vs Vector Images
+
+Digital images can be categorized into two main types:
+
+### Raster Images
+
+**Raster images** (also called bitmap images) consist of a grid of pixels. They are resolution-dependent, meaning they have a fixed number of pixels. When enlarged beyond their resolution, they become pixelated.
+
+- Examples: JPEG, PNG, BMP, TIFF
+- Best for: Photographs, complex images with many colors
+- Used in: Computer vision, image processing, photography
+
+### Vector Images
+
+**Vector images** are defined by mathematical equations rather than pixels. They can be scaled to any size without losing quality.
+
+- Examples: SVG, AI, EPS
+- Best for: Logos, illustrations, graphics with simple shapes
+- Note: OpenCV primarily works with raster images, though it can read some vector formats by converting them to raster first
+
+<Aside type="note">
+OpenCV works almost exclusively with raster images. If you need to process vector graphics, they must first be converted (rasterized) to a pixel-based format.
+</Aside>
+
+## Key Concepts Summary
+
+Understanding digital images involves several interconnected concepts:
+
+1. **Pixels**: The smallest units that make up a digital image
+2. **Resolution**: The number of pixels (width × height) in an image
+3. **Bit Depth**: The number of bits used to represent each pixel's color
+4. **Color Channels**: Separate components (Red, Green, Blue, or others) that combine to form colors
+5. **Matrix Representation**: How images are stored and manipulated as arrays in computer memory
+6. **File Formats**: Different ways to encode and compress image data
+
+## Why This Matters for OpenCV
+
+Understanding digital images is crucial when working with OpenCV because:
+
+1. **Data Structure**: OpenCV represents images as NumPy arrays—understanding pixels and matrices helps you manipulate them effectively
+2. **Color Spaces**: Knowing about color channels helps you understand BGR, RGB, HSV, and other color spaces
+3. **Image Operations**: Pixel-level operations become intuitive when you understand how images are structured
+4. **Performance**: Understanding resolution and bit depth helps you optimize image processing operations
+5. **File Handling**: Knowing different formats helps you choose the right one for reading, processing, and saving images
+
+## Next Steps
+
+Now that you understand digital images, you're ready to:
+
+1. **[Work with Images in OpenCV](/getting-started/quick-start/)** - Learn how to read, display, and save images
+2. Explore color spaces and how OpenCV handles different color representations
+3. Learn about image preprocessing techniques that operate on pixel values
+
+<Aside type="tip">
+Remember: In OpenCV, images are NumPy arrays. This means you can use all NumPy operations for image manipulation, making it a powerful tool for computer vision tasks.
+</Aside>
+
+## References
+
+- [Digital Image - Wikipedia](https://en.wikipedia.org/wiki/Digital_image)
+- [Digital Image Processing - Wikipedia](https://en.wikipedia.org/wiki/Digital_image_processing)
+- [Bit Depth Tutorial - Cambridge in Colour](https://www.cambridgeincolour.com/tutorials/bit-depth.htm)
+- [OpenCV Mat - The Basic Image Container](https://docs.opencv.org/3.4/d6/d6d/tutorial_mat_the_basic_image_container.html)
+- [Pixels, Bits, and Color Modes - ScienceDirect](https://www.sciencedirect.com/topics/computer-science/bits-per-pixels)

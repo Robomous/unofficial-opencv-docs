@@ -1,0 +1,215 @@
+---
+title: Introduction to Computer Vision
+description: Learn what computer vision is, how it relates to computer graphics, and understand the fundamental concepts that form the foundation of OpenCV.
+sidebar:
+  order: 0
+---
+
+import { Aside, Card, CardGrid } from '@astrojs/starlight/components';
+
+Computer vision is a field of artificial intelligence that enables computers to interpret and understand visual information from the world, such as images and videos, in a manner similar to human vision. Before diving into OpenCV, it's essential to understand what computer vision is, how it relates to computer graphics, and why these fields are fundamental to modern technology.
+
+## What is Computer Vision?
+
+Computer vision is an interdisciplinary field that focuses on enabling machines to extract meaningful information from visual data. The primary goal is to automate tasks that the human visual system can perform, such as:
+
+- **Object recognition and detection**: Identifying and locating objects within images or video streams
+- **Scene understanding**: Interpreting the context and meaning of visual scenes
+- **Image analysis**: Extracting features, patterns, and information from images
+- **Motion tracking**: Following objects or people across video frames
+- **3D reconstruction**: Building three-dimensional models from two-dimensional images
+
+<Aside type="tip">
+Computer vision is often described as the "inverse problem" of computer graphics. While computer graphics creates images from data, computer vision extracts data from images.
+</Aside>
+
+## Applications of Computer Vision
+
+Computer vision has become ubiquitous in modern technology, powering applications across numerous industries:
+
+<CardGrid>
+  <Card title="Autonomous Vehicles" icon="car">
+    Self-driving cars use computer vision to identify objects, interpret traffic signs, detect pedestrians, and navigate roads safely.
+  </Card>
+  <Card title="Medical Imaging" icon="stethoscope">
+    Analyzing medical images (X-rays, MRIs, CT scans) to detect abnormalities, assist in diagnosis, and plan treatments.
+  </Card>
+  <Card title="Industrial Inspection" icon="factory">
+    Quality control in manufacturing, automatically inspecting products for defects during production processes.
+  </Card>
+  <Card title="Security & Surveillance" icon="shield">
+    Real-time monitoring, facial recognition, and anomaly detection in surveillance systems.
+  </Card>
+  <Card title="Agriculture" icon="leaf">
+    Monitoring crop health, detecting diseases, optimizing harvesting, and managing agricultural resources.
+  </Card>
+  <Card title="Augmented Reality" icon="glasses">
+    Overlaying digital information onto real-world environments, enabling interactive experiences.
+  </Card>
+</CardGrid>
+
+## What is Computer Graphics?
+
+Computer graphics is the field of computer science that focuses on creating, manipulating, and rendering visual content using computational methods. It encompasses both two-dimensional (2D) and three-dimensional (3D) images and animations, facilitating the visualization of data and the creation of virtual environments.
+
+The primary goals of computer graphics include:
+
+- **Rendering**: Generating images from 3D models or scene descriptions
+- **Modeling**: Creating digital representations of objects and environments
+- **Animation**: Creating motion and transformations over time
+- **Visualization**: Representing data in visual forms for better understanding
+
+## Applications of Computer Graphics
+
+Computer graphics is fundamental to many industries and applications:
+
+<CardGrid>
+  <Card title="Entertainment" icon="film">
+    Creating realistic animations, visual effects, and immersive environments for movies, video games, and virtual reality.
+  </Card>
+  <Card title="Computer-Aided Design" icon="ruler">
+    Engineering and architectural design tools for modeling buildings, vehicles, and complex products.
+  </Card>
+  <Card title="Scientific Visualization" icon="microscope">
+    Representing complex scientific data, such as molecular structures or meteorological patterns, in visual forms.
+  </Card>
+  <Card title="Medical Imaging" icon="heart">
+    Generating detailed images from MRI and CT scans to aid in diagnosis and treatment planning.
+  </Card>
+  <Card title="Education & Training" icon="graduation-cap">
+    Interactive learning through simulations and virtual labs, enhancing educational experiences.
+  </Card>
+  <Card title="Graphic Design" icon="palette">
+    Creating visual content for advertisements, websites, and print media using image editing and vector graphics tools.
+  </Card>
+</CardGrid>
+
+## Similarities Between Computer Vision and Computer Graphics
+
+Despite their different objectives, computer vision and computer graphics share several fundamental characteristics:
+
+### Mathematical Foundations
+
+Both fields rely heavily on mathematical models and algorithms, particularly in areas like:
+
+- **Geometry**: Understanding shapes, transformations, and spatial relationships
+- **Photometry**: Modeling how light interacts with surfaces and materials
+- **Linear algebra**: Matrix operations for transformations and projections
+- **Calculus**: Optimization techniques for various algorithms
+
+### Interdisciplinary Nature
+
+Both fields intersect with multiple disciplines:
+
+- **Artificial Intelligence**: Machine learning techniques are used in both fields
+- **Human-Computer Interaction**: Understanding how humans perceive and interact with visual information
+- **Signal Processing**: Techniques for analyzing and manipulating visual data
+- **Physics**: Understanding light, materials, and physical phenomena
+
+### Technological Overlap
+
+Advancements in one field often benefit the other:
+
+- **Inverse rendering**: Computer graphics techniques for realistic rendering can enhance training datasets used in computer vision
+- **Differentiable rendering**: Allows computer vision models to work with 3D representations
+- **Synthetic data generation**: Computer graphics can create realistic training data for computer vision systems
+- **Neural rendering**: Combines techniques from both fields to create more realistic and controllable visual systems
+
+<Aside type="note">
+The relationship between computer vision and computer graphics is often described as "inverse problems." Computer graphics solves the forward problem (data → image), while computer vision solves the inverse problem (image → data).
+</Aside>
+
+## Key Differences
+
+While computer vision and computer graphics are closely related, they differ in fundamental ways:
+
+### Direction of Processing
+
+**Computer Vision**: 
+- **Input**: Images or video from the real world
+- **Output**: Data, information, or understanding
+- **Process**: Analyzing and interpreting visual data
+- **Goal**: Extract meaningful information from images
+
+**Computer Graphics**:
+- **Input**: Data, models, or scene descriptions
+- **Output**: Images or visual representations
+- **Process**: Generating and rendering visual content
+- **Goal**: Create visual representations from data
+
+### Primary Objectives
+
+| Computer Vision | Computer Graphics |
+|----------------|-------------------|
+| Understand existing visual information | Create new visual content |
+| Extract data from images | Generate images from data |
+| Analyze and interpret | Synthesize and render |
+| Recognition and detection | Modeling and animation |
+
+### Typical Workflows
+
+**Computer Vision Workflow**:
+1. Capture or receive an image/video
+2. Preprocess the visual data
+3. Extract features or detect objects
+4. Analyze and interpret the information
+5. Make decisions or provide insights
+
+**Computer Graphics Workflow**:
+1. Define or model a scene or object
+2. Set up lighting and materials
+3. Apply transformations and animations
+4. Render the scene to create an image
+5. Post-process for desired effects
+
+## Why This Matters for OpenCV
+
+Understanding the distinction between computer vision and computer graphics is crucial when working with OpenCV because:
+
+1. **OpenCV's Focus**: OpenCV is primarily a computer vision library, designed to analyze and process images from the real world, not to create synthetic graphics.
+
+2. **Complementary Tools**: While OpenCV handles vision tasks, you may need computer graphics libraries (like OpenGL) for rendering or visualization purposes.
+
+3. **Synthetic Data**: Understanding computer graphics helps when generating synthetic training data for computer vision models.
+
+4. **Inverse Problems**: Many computer vision tasks can be thought of as inverse graphics problems, which helps in understanding the underlying mathematics.
+
+5. **Hybrid Applications**: Modern applications often combine both fields—using computer vision to understand the real world and computer graphics to overlay or visualize information.
+
+## Academic References
+
+For those interested in deeper study, here are some foundational resources:
+
+### Computer Vision
+
+- **"Computer Vision: Algorithms and Applications"** by Richard Szeliski (2010) - A comprehensive textbook covering computer vision techniques and applications
+- **"Computer Vision: A Modern Approach"** by David A. Forsyth and Jean Ponce (2011) - Covers fundamental concepts and modern developments
+- **IEEE Transactions on Pattern Analysis and Machine Intelligence (PAMI)** - Leading journal for computer vision research
+- **International Journal of Computer Vision (IJCV)** - Focuses on all aspects of computer vision research
+- **Conference on Computer Vision and Pattern Recognition (CVPR)** - Premier annual conference for computer vision research
+
+### Computer Graphics
+
+- **"Computer Graphics: Principles and Practice"** by Foley, van Dam, Feiner, and Hughes - Comprehensive textbook covering fundamental and advanced topics
+- **IEEE Computer Graphics and Applications** - Bimonthly magazine with latest developments in computer graphics
+- **ACM Transactions on Graphics (TOG)** - Leading journal for computer graphics research
+- **SIGGRAPH** - Premier annual conference for computer graphics
+
+### Inverse Problems and Intersections
+
+- **"A Signal-Processing Framework for Inverse Rendering"** by Ravi Ramamoorthi and Pat Hanrahan (2001) - Mathematical framework for inverse rendering
+- **"Inverse Rendering for Computer Graphics"** by Steve Marschner (1998) - Ph.D. thesis on inverse rendering problems
+- **"Vision as Inverse Graphics"** - Research exploring vision as an inverse graphics problem
+
+## Next Steps
+
+Now that you understand what computer vision is and how it relates to computer graphics, you're ready to:
+
+1. **[Install OpenCV](/getting-started/installation/)** - Set up OpenCV in your Python environment
+2. **[Quick Start Guide](/getting-started/quick-start/)** - Begin working with OpenCV through practical examples
+3. Explore OpenCV's capabilities for real-world computer vision applications
+
+<Aside type="tip">
+Remember: Computer vision extracts information from images, while computer graphics creates images from information. OpenCV helps you do the former—analyzing and understanding visual data from the real world.
+</Aside>
+
