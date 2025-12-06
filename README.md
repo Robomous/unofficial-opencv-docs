@@ -1,6 +1,6 @@
 <img src="https://robomous.ai/images/layout/robomous-banner.svg" alt="Robomous.ai" width=300 />
 
------------------
+---
 
 Documentation focused on OpenCV for Python. An open source project by Robomous for the community.
 
@@ -13,34 +13,27 @@ Documentation focused on OpenCV for Python. An open source project by Robomous f
 ├── public/
 ├── src/
 │   ├── assets/
-│   │   ├── robomous-logo-banner.svg
-│   │   └── houston.webp
+│   │   ├── opencv_logo.svg
+│   │   └── opencv_logo_white.svg
 │   ├── content/
 │   │   └── docs/
-│   │       ├── index.md              # English homepage
-│   │       ├── getting-started/     # English "Getting Started" section
+│   │       ├── index.mdx              # English homepage
+│   │       ├── getting-started/       # "Getting Started" section
 │   │       │   ├── what-is-opencv.mdx
 │   │       │   ├── installation.mdx
 │   │       │   └── quick-start.mdx
-│   │       ├── guides/               # English "Guides" section
-│   │       │   ├── index.md
-│   │       │   ├── core-concepts/     # Core Concepts subsection
-│   │       │   │   └── introduction-to-computer-vision.mdx
-│   │       │   └── image-preprocessing.md
-│   │       └── es/                   # Spanish content
-│   │           ├── index.md          # Spanish homepage
+│   │       ├── fundamentals/          # "Fundamentals" section
+│   │       │   ├── digital-image.mdx
+│   │       │   └── introduction-to-computer-vision.mdx
+│   │       ├── image-preprocessing/   # "Image Preprocessing" section
+│   │       │   └── index.md
+│   │       └── es/                    # Spanish content (mirrors English structure)
+│   │           ├── index.mdx
 │   │           ├── getting-started/
-│   │           │   ├── what-is-opencv.mdx
-│   │           │   ├── installation.mdx
-│   │           │   └── quick-start.mdx
-│   │           └── guides/
-│   │               ├── index.md
-│   │               ├── core-concepts/     # Core Concepts subsection
-│   │               │   └── introduction-to-computer-vision.mdx
-│   │               └── image-preprocessing.md
-│   ├── content.config.ts
+│   │           ├── fundamentals/
+│   │           └── image-preprocessing/
 │   └── styles/
-│       └── custom-colors.css
+│       └── custom.css
 ├── astro.config.mjs
 ├── package.json
 └── tsconfig.json
@@ -51,26 +44,27 @@ Documentation focused on OpenCV for Python. An open source project by Robomous f
 - **English content** is located directly in `src/content/docs/` (root level)
 - **Spanish content** is located in `src/content/docs/es/`
 - Starlight automatically generates routes based on the file structure
-- English content is served at root paths (e.g., `/`, `/start-here/getting-started/`)
-- Spanish content is served under `/es/` (e.g., `/es/`, `/es/start-here/getting-started/`)
+- English content is served at root paths (e.g., `/`, `/getting-started/quick-start/`)
+- Spanish content is served under `/es/` (e.g., `/es/`, `/es/getting-started/quick-start/`)
 
 ## 🧞 Commands
 
 All commands are run from the root of the project, from a terminal:
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+| Command             | Action                                           |
+| :------------------ | :----------------------------------------------- |
+| `yarn install`      | Installs dependencies                            |
+| `yarn dev`          | Starts local dev server at `localhost:4321`      |
+| `yarn build`        | Build your production site to `./dist/`          |
+| `yarn preview`      | Preview your build locally, before deploying     |
+| `yarn astro ...`    | Run CLI commands like `astro add`, `astro check` |
+| `yarn astro --help` | Get help using the Astro CLI                     |
 
 ## 🚀 Deployment
 
-For AWS Amplify deployment:
-- **Build command**: `npm run build`
+For AWS Amplify deployment (configured in `amplify.yml`):
+
+- **Build command**: `yarn build`
 - **Output directory**: `dist`
 
 ## 👀 Want to learn more?
