@@ -1,0 +1,200 @@
+---
+title: Reading, Displaying, and Writing Media
+description: Master image and video I/O in OpenCV. Learn about compression flags, RTSP streams, and how to avoid crashing Jupyter Notebooks.
+sidebar:
+  order: 4
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+This guide covers the "Hello World" of Computer Vision: getting data IN and getting results OUT. While this seems simple, there are nuances with **Jupyter Notebooks**, **Video Codecs**, and **Compression Params** that differentiate a "script kiddie" from a pro.
+
+## Images
+
+### Reading Images (`cv2.imread`)
+
+Loading an image into memory ("reading") converting it from a file format (JPG, PNG) into a NumPy matrix.
+
+```python
+import cv2
+
+# 1. Basic load (Loads as BGR Color)
+# Note: Discards transparency (Alpha channel) automatically
+img = cv2.imread("photo.jpg")
+
+# 2. Load as Grayscale directly
+# Faster and uses 1/3 less memory
+gray = cv2.imread("photo.jpg", cv2.IMREAD_GRAYSCALE)
+
+# 3. Load "Unchanged"
+# Keeps the Alpha Channel (Transparency) if present
+# Result shape: (H, W, 4) -> Blue, Green, Red, Alpha
+png = cv2.imread("logo.png", cv2.IMREAD_UNCHANGED)
+```
+
+<Aside type="caution">
+  **Path Warning**: If the path is wrong, `imread` will NOT raise an error. It
+  will simply return `None`. **Always check:** ```python if img is None: raise
+  ValueError("Image not found. Check the path!") ```
+</Aside>
+
+### Displaying Images (`cv2.imshow`)
+
+This creates a GUI window to show the image.
+
+```python
+cv2.imshow("Window Title", img)
+
+# Parameters for waitKey:
+# 0 = Wait forever for a key press
+# 1000 = Wait 1000ms (1 second), then continue
+key = cv2.waitKey(0)
+
+if key == ord('q'):
+    print("Quit key pressed")
+
+cv2.destroyAllWindows()
+```
+
+#### The Jupyter Notebook Problem
+
+If you run `cv2.imshow` inside a Jupyter Notebook (or Google Colab), it will often **crash the kernel** because it tries to open a desktop window from a browser environment.
+
+**Solution**: Use Matplotlib.
+
+```python
+import matplotlib.pyplot as plt
+
+# 1. Convert BGR to RGB (Matplotlib expects RGB)
+img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+# 2. Display with PyPlot
+plt.figure(figsize=(10, 6)) # Optional: Control figure size
+plt.imshow(img_rgb)
+plt.axis('off') # Hide axis numbers
+plt.show()
+```
+
+### Saving Images (`cv2.imwrite`)
+
+Writing is straightforward, but you can control compression levels.
+
+```python
+# 1. Save as PNG (Lossless)
+# Default compression is 3 (Range: 0-9). Higher = Smaller file, slower save.
+cv2.imwrite("output.png", img)
+
+# 2. Save as JPG (Lossy)
+# Default quality is 95 (Range: 0-100). Higher = Better quality, larger file.
+cv2.imwrite("output.jpg", img)
+```
+
+#### Advanced Compression Parameters
+
+```python
+# Save a high-compressed PNG (Max compression: 9)
+cv2.imwrite("compressed.png", img, [cv2.IMWRITE_PNG_COMPRESSION, 9])
+
+# Save a low-quality JPG (Quality: 10%)
+cv2.imwrite("grainy.jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 10])
+```
+
+## Video
+
+Video is just a sequence of images ("frames") displayed quickly. OpenCV handles video files (`.mp4`) and network cameras (RTSP) using the exact same `VideoCapture` class.
+
+### Reading Video & Cameras
+
+```python
+# Open a file
+cap = cv2.VideoCapture("video.mp4")
+
+# OR Open the default webcam (0)
+# cap = cv2.VideoCapture(0)
+
+# OR Open an IP Camera (RTSP Stream)
+# Format: rtsp://username:password@ip_address:port/path
+# cap = cv2.VideoCapture("rtsp://admin:12345@192.168.1.55/stream")
+
+if not cap.isOpened():
+    print("Error opening video stream")
+
+while True:
+    # 1. Read a frame
+    # ret: Boolean (True if frame is valid)
+    # frame: The image matrix
+    ret, frame = cap.read()
+
+    # 2. Check if video ended or error occurred
+    if not ret:
+        print("End of video stream")
+        break
+
+    # 3. Process frame (e.g., Grayscale)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # 4. Show frame
+    cv2.imshow('Video', gray)
+
+    # 5. Exit on 'q' key
+    # waitKey(1) waits 1ms. If you use 0, it pauses on every frame!
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+```
+
+### Video Properties (Metadata)
+
+You can inspect metadata using `.get()`. This is useful for initializing your VideoWriter correctly.
+
+```python
+width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fps    = cap.get(cv2.CAP_PROP_FPS)
+count  = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+print(f"Resolution: {width}x{height} @ {fps} FPS")
+print(f"Total Frames: {count} ({count/fps:.2f} seconds)")
+```
+
+### Writing Video (`VideoWriter`)
+
+Saving video is trickier than images because you must define a **Codec** (Compressor). A "Codec" translates the raw pixel matrices into a compressed video format.
+
+```python
+# 1. Define the codec (FourCC code)
+# Common codecs:
+# 'mp4v' -> for .mp4 (Widely supported)
+# 'XVID' -> for .avi (Older, very reliable)
+# 'MJPG' -> for .avi (Large file size, but low CPU usage)
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+
+# 2. Create the Writer
+# Arguments: Path, Codec, FPS, Resolution
+# CRITICAL: The resolution tuple (Width, Height) MUST match the frame size exactly.
+out = cv2.VideoWriter('output.mp4', fourcc, 20.0, (width, height))
+
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret: break
+
+    # ... Processing ...
+
+    # Write the frame
+    out.write(frame)
+
+cap.release()
+out.release() # CRITICAL: Finalizes the file header. If you forget this, the video won't play.
+```
+
+## Summary Reference
+
+| Function                         | Usage        | Note                                                            |
+| :------------------------------- | :----------- | :-------------------------------------------------------------- |
+| `cv2.imread(path, flag)`         | Read image   | Returns `None` if fail. Use `cv2.IMREAD_UNCHANGED` for Alpha.   |
+| `cv2.imshow(title, img)`         | Show image   | **Avoid in Jupyter**. Use Matplotlib instead.                   |
+| `cv2.imwrite(path, img, params)` | Save image   | Supports compression flags (`JPEG_QUALITY`, `PNG_COMPRESSION`). |
+| `cap.get(prop_id)`               | Get Metadata | Use `CAP_PROP_FPS` or `CAP_PROP_FRAME_COUNT`.                   |
+| `out.release()`                  | Save Video   | **Mandatory**. Without it, video files are corrupted.           |

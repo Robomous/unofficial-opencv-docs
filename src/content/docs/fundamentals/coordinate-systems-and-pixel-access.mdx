@@ -1,0 +1,171 @@
+---
+title: Coordinate Systems & Pixel Access
+description: Master the coordinate systems in OpenCV (x,y vs row,col), learn how to slice regions of interest (ROI), and avoid the "Index Error" trap.
+sidebar:
+  order: 3
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+If there is one topic that causes 90% of bugs for beginners, it is **Coordinate Systems**.
+
+OpenCV and NumPy speak slightly different languages when it comes to coordinates. One talks in **Geometry** `(x, y)`, and the other talks in **Matrices** `[row, col]`. mixing them up will crash your code or—worse—silently edit the wrong pixels.
+
+This guide is your Rosetta Stone.
+
+## The Coordinate System
+
+In standard mathematics (Cartesian), the origin `(0, 0)` is usually at the **bottom-left** or **center**.
+
+In Computer Vision (and most computer graphics), the origin `(0, 0)` is at the **Top-Left**.
+
+- **X-axis**: goes from Left to Right.
+- **Y-axis**: goes from Top to Bottom.
+
+```text
+  (0,0) ------> X (Width)
+    |
+    |
+    v
+    Y (Height)
+```
+
+### The Great Divide: (x, y) vs [y, x]
+
+Here is the rule you must memorize:
+
+1.  **Function Arguments** use `(x, y)`.
+    - Example: `cv2.resize(img, (width, height))`
+    - Example: `cv2.circle(img, (x, y), ...)`
+2.  **Matrix Access** uses `[y, x]` (or `[row, col]`).
+    - Example: `pixel = img[y, x]`
+    - Example: `crop = img[y1:y2, x1:x2]`
+
+<Aside type="danger">
+  **The "Shape" Trap**: `img.shape` returns `(Height, Width, Channels)`. But
+  `cv2.resize` expects `(Width, Height)`. This means `cv2.resize(img,
+  img.shape[:2])` is WRONG! It flips the dimensions.
+</Aside>
+
+## Accessing & Modifying Pixels
+
+Since images are NumPy arrays, accessing a pixel is just array indexing.
+
+```python
+import cv2
+import numpy as np
+
+img = cv2.imread("photo.jpg")
+
+# 1. Access a pixel
+# Remember: [y, x]
+y, x = 50, 100
+pixel = img[y, x]
+print(f"Pixel at y={y}, x={x} is {pixel}")
+
+# 2. Modify a pixel
+# Make it White (255, 255, 255)
+img[y, x] = [255, 255, 255]
+```
+
+<Aside type="tip">
+  Looping over every pixel with a `for` loop is **extremely slow** in Python.
+  Always prefer Slicing or Vectorized operations (NumPy) whenever possible.
+</Aside>
+
+## Regions of Interest (ROI) & Slicing
+
+A **ROI** is just a sub-section of an image. You might want to detect a face and then just work on that square face region.
+
+In NumPy, we use **Slicing**: `array[start:stop:step]`.
+
+### Basic Crop
+
+To crop a rectangular region, you need the start and end coordinates for both Y (Rows) and X (Cols).
+
+```python
+# Defined coordinates
+x_start, y_start = 100, 50
+x_end, y_end = 300, 250
+
+# Crop logic: [y_start:y_end, x_start:x_end]
+roi = img[y_start:y_end, x_start:x_end]
+
+cv2.imshow("Cropped ROI", roi)
+```
+
+### ROI arithmetic
+
+Here is a practical example: "I want to put a black square in the center of the image".
+
+```python
+# 1. Create a blank canvas
+img = np.zeros((400, 400, 3), dtype="uint8")
+
+# 2. Define the region
+# Center 100x100 square
+center_y, center_x = 200, 200
+offset = 50
+
+# 3. Modify the region directly
+# We are selecting a range of pixels and assigning a value to ALL of them at once
+img[center_y-offset:center_y+offset, center_x-offset:center_x+offset] = [255, 255, 255] # White square
+```
+
+### Copy vs View
+
+This is a critical Python concept. When you slice an array, NumPy usually returns a **View**, not a **Copy**.
+
+- **View**: If you modify the `roi`, the original `img` ALSO changes.
+- **Copy**: If you modify the `roi`, the original `img` stays the same.
+
+```python
+# VIEW example
+roi = img[0:100, 0:100]
+roi[:] = [0, 0, 255] # Make the ROI Red
+# Result: Top-left of 'img' is now Red!
+
+# COPY example
+roi_copy = img[0:100, 0:100].copy()
+roi_copy[:] = [0, 255, 0] # Make the copy Green
+# Result: 'img' is NOT changed.
+```
+
+## Advanced Indexing
+
+### Negative Indexing
+
+Just like standard Python lists, you can use negative numbers to count from the end.
+
+```python
+# Get the last row
+last_row = img[-1, :]
+
+# Crop the bottom-right 10x10 corner
+corner = img[-10:, -10:]
+```
+
+### Striding (Stepping)
+
+The third argument in slicing is the `step`. You can use this to downsample an image trivially (though without anti-aliasing).
+
+```python
+# [start:end:step]
+# Take every 2nd pixel in both directions (half size)
+small_img = img[::2, ::2]
+```
+
+## Summary Reference
+
+| Operation        | Syntax                       | Logic                |
+| :--------------- | :--------------------------- | :------------------- |
+| **Pixel Access** | `img[y, x]`                  | Matrix Row/Col       |
+| **Drawing**      | `cv2.line(img, (x, y), ...)` | Cartesian Point      |
+| **Resizing**     | `cv2.resize(img, (w, h))`    | Cartesian Dimensions |
+| **Shape**        | `(h, w, c)`                  | Matrix Dimensions    |
+| **Cropping**     | `img[y1:y2, x1:x2]`          | Matrix Slicing       |
+
+## References
+
+1.  [NumPy Indexing Documentation](https://numpy.org/doc/stable/user/basics.indexing.html)
+2.  [OpenCV Core Functionality](https://docs.opencv.org/4.x/d0/de1/group__core.html)

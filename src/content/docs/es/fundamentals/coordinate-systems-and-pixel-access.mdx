@@ -1,0 +1,172 @@
+---
+title: Sistemas de Coordenadas y Acceso a Píxeles
+description: Domina los sistemas de coordenadas en OpenCV (x,y vs fila,col), aprende a recortar regiones de interés (ROI) y evita la trampa del "Error de Índice".
+sidebar:
+  order: 3
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Si hay un tema que causa el 90% de los errores para principiantes, son los **Sistemas de Coordenadas**.
+
+OpenCV y NumPy hablan idiomas ligeramente diferentes cuando se trata de coordenadas. Uno habla en **Geometría** `(x, y)`, y el otro habla en **Matrices** `[fila, col]`. Mezclarlos hará que tu código falle o—peor—edite silenciosamente los píxeles incorrectos.
+
+Esta guía es tu Piedra Rosetta.
+
+## El Sistema de Coordenadas
+
+En matemáticas estándar (Cartesianas), el origen `(0, 0)` está usualmente en la **esquina inferior izquierda** o el **centro**.
+
+En Visión por Computadora (y la mayoría de gráficos por computadora), el origen `(0, 0)` está en la **Esquina Superior Izquierda**.
+
+- **Eje X (X-axis)**: va de Izquierda a Derecha.
+- **Eje Y (Y-axis)**: va de Arriba a Abajo.
+
+```text
+  (0,0) ------> X (Ancho)
+    |
+    |
+    v
+    Y (Alto)
+```
+
+### La Gran División: (x, y) vs [y, x]
+
+Aquí está la regla que debes memorizar:
+
+1.  **Argumentos de Función** usan `(x, y)`.
+    - Ejemplo: `cv2.resize(img, (ancho, alto))`
+    - Ejemplo: `cv2.circle(img, (x, y), ...)`
+2.  **Acceso a Matriz** usa `[y, x]` (o `[fila, col]`).
+    - Ejemplo: `pixel = img[y, x]`
+    - Ejemplo: `recorte = img[y1:y2, x1:x2]`
+
+<Aside type="danger">
+  **La Trampa de "Shape"**: `img.shape` retorna `(Alto, Ancho, Canales)`. Pero
+  `cv2.resize` espera `(Ancho, Alto)`. ¡Esto significa que `cv2.resize(img,
+  img.shape[:2])` está MAL! Invierte las dimensiones.
+</Aside>
+
+## Accediendo y Modificando Píxeles
+
+Dado que las imágenes son arreglos de NumPy, acceder a un píxel es solo indexación de arreglos.
+
+```python
+import cv2
+import numpy as np
+
+img = cv2.imread("photo.jpg")
+
+# 1. Acceder a un píxel
+# Recuerda: [y, x]
+y, x = 50, 100
+pixel = img[y, x]
+print(f"Píxel en y={y}, x={x} es {pixel}")
+
+# 2. Modificar un píxel
+# Hacerlo Blanco (255, 255, 255)
+img[y, x] = [255, 255, 255]
+```
+
+<Aside type="tip">
+  Iterar sobre cada píxel con un bucle `for` es **extremadamente lento** en
+  Python. Siempre prefiere "Slicing" (rebanado) u operaciones vectorizadas
+  (NumPy) siempre que sea posible.
+</Aside>
+
+## Regiones de Interés (ROI) y Slicing
+
+Una **ROI** (Region of Interest) es solo una sub-sección de una imagen. Podrías querer detectar un rostro y luego trabajar solo en esa región cuadrada del rostro.
+
+En NumPy, usamos **Slicing** (Rebanado): `array[inicio:fin:paso]`.
+
+### Recorte Básico (Basic Crop)
+
+Para recortar una región rectangular, necesitas las coordenadas de inicio y fin tanto para Y (Filas) como para X (Cols).
+
+```python
+# Coordenadas definidas
+x_start, y_start = 100, 50
+x_end, y_end = 300, 250
+
+# Lógica de recorte: [y_start:y_end, x_start:x_end]
+roi = img[y_start:y_end, x_start:x_end]
+
+cv2.imshow("ROI Recortada", roi)
+```
+
+### Aritmética de ROI
+
+Aquí hay un ejemplo práctico: "Quiero poner un cuadrado blanco en el centro de la imagen".
+
+```python
+# 1. Crear un lienzo en blanco
+img = np.zeros((400, 400, 3), dtype="uint8")
+
+# 2. Definir la región
+# Cuadrado central de 100x100
+center_y, center_x = 200, 200
+offset = 50
+
+# 3. Modificar la región directamente
+# Estamos seleccionando un rango de píxeles y asignando un valor a TODOS ellos a la vez
+img[center_y-offset:center_y+offset, center_x-offset:center_x+offset] = [255, 255, 255] # Cuadrado blanco
+```
+
+### Copia vs Vista (Copy vs View)
+
+Este es un concepto crítico de Python. Cuando haces "slice" de un arreglo, NumPy usualmente retorna una **Vista** (View), no una **Copia** (Copy).
+
+- **Vista**: Si modificas la `roi`, la `img` original TAMBIÉN cambia.
+- **Copia**: Si modificas la `roi`, la `img` original permanece igual.
+
+```python
+# Ejemplo de VISTA
+roi = img[0:100, 0:100]
+roi[:] = [0, 0, 255] # Hacer la ROI Roja
+# Resultado: ¡La esquina superior izquierda de 'img' ahora es Roja!
+
+# Ejemplo de COPIA
+roi_copy = img[0:100, 0:100].copy()
+roi_copy[:] = [0, 255, 0] # Hacer la copia Verde
+# Resultado: 'img' NO cambia.
+```
+
+## Indexación Avanzada
+
+### Indexación Negativa
+
+Al igual que las listas estándar de Python, puedes usar números negativos para contar desde el final.
+
+```python
+# Obtener la última fila
+last_row = img[-1, :]
+
+# Recortar la esquina inferior derecha de 10x10
+corner = img[-10:, -10:]
+```
+
+### Striding (Pasos)
+
+El tercer argumento en el slicing es el `paso` (step). Puedes usar esto para reducir el tamaño de una imagen trivialmente (aunque sin anti-aliasing).
+
+```python
+# [inicio:fin:paso]
+# Tomar cada 2do píxel en ambas direcciones (mitad de tamaño)
+small_img = img[::2, ::2]
+```
+
+## Referencia Resumen
+
+| Operación          | Sintaxis                     | Lógica                  |
+| :----------------- | :--------------------------- | :---------------------- |
+| **Acceso a Píxel** | `img[y, x]`                  | Matriz Fila/Col         |
+| **Dibujo**         | `cv2.line(img, (x, y), ...)` | Punto Cartesiano        |
+| **Redimensionar**  | `cv2.resize(img, (w, h))`    | Dimensiones Cartesianas |
+| **Forma (Shape)**  | `(h, w, c)`                  | Dimensiones de Matriz   |
+| **Recorte**        | `img[y1:y2, x1:x2]`          | Slicing de Matriz       |
+
+## Referencias
+
+1.  [Documentación de Indexación de NumPy](https://numpy.org/doc/stable/user/basics.indexing.html)
+2.  [Funcionalidad Core de OpenCV](https://docs.opencv.org/4.x/d0/de1/group__core.html)

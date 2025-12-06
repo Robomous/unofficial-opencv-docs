@@ -1,0 +1,188 @@
+---
+title: Matrices & Color Spaces
+description: Deep dive into manipulating pixels, understanding color channels (RGB vs BGR), and drawing on images.
+sidebar:
+  order: 2
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+If the previous section taught you that "images are matrices," this section will teach you how to perform surgery on them. This is where we stop simply looking at data and start manipulating it.
+
+We will cover the "Color Space Zoo" (and why OpenCV's default is weird), how to act like a painter with NumPy, and the most common coordinate system trap in computer vision.
+
+## The Color Space Zoo
+
+A "Color Space" is just a mathematical model for describing color as numbers. You might think "Red, Green, Blue" is the only way, but in Computer Vision, we often change the model to make our algorithms easier.
+
+### BGR vs RGB (The "Smurf" Problem)
+
+This is the #1 confusion for beginners.
+
+- **[RGB (Red, Green, Blue)](https://en.wikipedia.org/wiki/RGB_color_model)**: The standard for almost everything (Web browsers, CSS, Matplotlib, modern cameras). It is an **additive** color model, meaning colors are created by adding light together.
+- **BGR (Blue, Green, Red)**: The standard for **OpenCV**. It is mathematically identical to RGB, just with the first and third channels swapped.
+
+Why? Back when OpenCV started (late 90s), BGR was a popular format among camera manufacturers and Windows software. OpenCV stuck with it for legacy compatibility.
+
+<Aside type="caution">
+  **The Trap**: If you load an image with OpenCV (`cv2.imread`) and try to
+  display it with Matplotlib (`plt.imshow`), the Red and Blue channels will be
+  swapped. People will look blue (like Smurfs), and the sky will look orange.
+</Aside>
+
+**The Fix**:
+Always convert color spaces if you are moving data _out_ of OpenCV.
+
+```python
+import cv2
+import matplotlib.pyplot as plt
+
+# 1. Load in OpenCV's default BGR
+img_bgr = cv2.imread("photo.jpg")
+
+# 2. Convert to RGB for display
+img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+
+plt.imshow(img_rgb)
+plt.show()
+```
+
+### HSV (Hue, Saturation, Value)
+
+Why do we need another one? Imagine you want to "detect the red ball". Only using RGB is hard because a "red" pixel might be `(255, 0, 0)` in bright light, but `(100, 0, 0)` in shadow. The numbers change completely just because of lighting!
+
+**[HSV (Hue, Saturation, Value)](https://en.wikipedia.org/wiki/HSL_and_HSV)** separates **Color (Hue)** from **Lighting (Value)**.
+
+- **Hue**: The "kind" of color (0-179 in OpenCV). Red is around 0 or 179, Green ~60, Blue ~120.
+- **Saturation**: How "pure" the color is (0-255). 0 is faded gray, 255 is vibrant.
+- **Value**: Brightness (0-255). 0 is black, 255 is bright.
+
+This makes color detection robust to shadows. You can just say "Find me pixels where Hue is Red," regardless of how dark (Value) the pixel is.
+
+```python
+# Convert to HSV
+img_hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+```
+
+### YUV (YCbCr)
+
+While RGB describes _how to create_ color (for screens), **[YUV](https://en.wikipedia.org/wiki/YUV)** describes _how humans perceive_ it. It splits the image into:
+
+- **Y (Luminance)**: The brightness/light intensity (the black-and-white image).
+- **U/V (Chrominance)**: The color information.
+
+This is extremely important for compression (like JPEG) and broadcasting. Because the human eye is much more sensitive to brightness than color, engineers can compress the Color (U/V) channels heavily without us noticing, while keeping the Brightness (Y) channel sharp.
+
+In OpenCV, this is often used when working with camera streams or legacy video formats.
+
+```python
+# Convert to YUV
+img_yuv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2YUV)
+```
+
+### Grayscale
+
+We mentioned this before, but it's technically a color space conversion too. It crushes the 3D cube of color into a 2D sheet of intensity, typically using a weighted sum to match human eye perception ($0.299R + 0.587G + 0.114B$).
+
+```python
+# Convert to Grayscale
+gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+```
+
+## Painting with NumPy
+
+Since images are just NumPy arrays, we can create them from scratch or modify them with array slicing.
+
+### Creating a Blank Canvas
+
+To create a new image, you just create a new array.
+
+```python
+import numpy as np
+
+# 1. Create a black image (all zeros)
+# Size: 500x500 pixels, 3 channels
+height, width = 500, 500
+channels = 3
+
+# dtype="uint8" is CRITICAL. Without it, you get 64-bit floats!
+blank = np.zeros((height, width, channels), dtype="uint8")
+
+# 2. Paint it Green
+# Access [All Rows, All Cols] and set the color
+# Remember BGR: (Blue=0, Green=255, Red=0)
+blank[:] = (0, 255, 0)
+```
+
+### Drawing Shapes
+
+OpenCV includes a basic "paint" library. This is useful for drawing bounding boxes around detected faces or writing debug text.
+
+<Aside type="danger">
+  **Coordinate System Trap**: - **Matrix Indexing**: `array[y, x]` (Rows, Cols).
+  - **Drawing Functions**: `function(img, (x, y))` (Cols, Rows). This
+  inconsistency causes many bugs. **Always double-check your order.**
+</Aside>
+
+```python
+# Draw a Rectangle
+# Arguments: Img, Top-Left (x,y), Bottom-Right (x,y), Color, Thickness
+cv2.rectangle(blank, (50, 50), (250, 250), (0, 0, 255), thickness=2)
+
+# Draw a Circle
+# Arguments: Img, Center (x,y), Radius, Color, Thickness (-1 = filled)
+cv2.circle(blank, (250, 250), 40, (255, 0, 0), thickness=-1)
+
+# Draw a Line
+cv2.line(blank, (0, 0), (500, 500), (255, 255, 255), thickness=3)
+
+# Write Text
+cv2.putText(blank, "Hello OpenCV", (50, 450),
+            cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 2)
+```
+
+## Channel Manipulation
+
+Sometimes you want to analyze just the "Redness" of an image, or remove the "Blue" channel entirely.
+
+### Splitting Channels
+
+`cv2.split` breaks the 3D array into three 2D arrays (one for each color).
+
+```python
+# Remember the order is B, G, R
+b, g, r = cv2.split(img_bgr)
+
+# 'b' is now a 2D grayscale image representing only the Blue intensity
+cv2.imshow("Blue Channel", b)
+```
+
+<Aside type="tip">
+  If you view a single channel (like `b`), it will look grayscale. Brighter
+  pixels mean "more blue."
+</Aside>
+
+### Merging Channels
+
+`cv2.merge` does the opposite: it combines three 2D arrays back into a 3D color image. This allows you to construct images or filter specific channels.
+
+```python
+import numpy as np
+
+# Let's verify standard BGR order
+# Create a blank channel of zeros (same size as the split 'b')
+zeros = np.zeros(b.shape[:2], dtype="uint8")
+
+# Merge them back, but replace Green with Zeros
+# Result: A purple/magenta image (only Blue + Red components)
+no_green_img = cv2.merge([b, zeros, r])
+
+cv2.imshow("No Green", no_green_img)
+```
+
+## Summary Checklist
+
+- [ ] **BGR vs RGB**: OpenCV uses BGR. Matplotlib/Web uses RGB. Always convert with `cv2.cvtColor`.
+- [ ] **Coordinates**: Drawing functions use `(x, y)`. Matrices use `[row, col]` (or `[y, x]`).
+- [ ] **Data Types**: Always define `dtype="uint8"` when creating new images with NumPy.
+- [ ] **Color Spaces**: Use HSV for color detection/filtering, not RGB.

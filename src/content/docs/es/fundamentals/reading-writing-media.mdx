@@ -1,0 +1,200 @@
+---
+title: Lectura, Visualización y Escritura de Multimedia
+description: Domina el I/O de imágenes y video en OpenCV. Aprende sobre flags de compresión, streams RTSP y cómo evitar colgar tus Jupyter Notebooks.
+sidebar:
+  order: 4
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Esta guía cubre el "Hola Mundo" de la Visión por Computadora: obtener datos de ENTRADA y sacar resultados de SALIDA. Aunque esto parece simple, existen matices con **Jupyter Notebooks**, **Códecs de Video** y **Parámetros de Compresión** que diferencian a un "script kiddie" de un pro.
+
+## Imágenes
+
+### Leyendo Imágenes (`cv2.imread`)
+
+Cargar una imagen en memoria ("leer") la convierte de un formato de archivo (JPG, PNG) a una matriz de NumPy.
+
+```python
+import cv2
+
+# 1. Carga básica (Carga como Color BGR)
+# Nota: Descarta la transparencia (Canal Alfa) automáticamente
+img = cv2.imread("photo.jpg")
+
+# 2. Cargar como Escala de Grises directamente
+# Más rápido y usa 1/3 menos de memoria
+gray = cv2.imread("photo.jpg", cv2.IMREAD_GRAYSCALE)
+
+# 3. Cargar "Sin Cambios"
+# Mantiene el Canal Alfa (Transparencia) si existe
+# Resultado shape: (H, W, 4) -> Azul, Verde, Rojo, Alfa
+png = cv2.imread("logo.png", cv2.IMREAD_UNCHANGED)
+```
+
+<Aside type="caution">
+  **Advertencia de Ruta**: Si la ruta es incorrecta, `imread` NO lanzará un
+  error. Simplemente retornará `None`. **Siempre verifica:** ```python if img is
+  None: raise ValueError("Imagen no encontrada. ¡Verifica la ruta!") ```
+</Aside>
+
+### Visualizando Imágenes (`cv2.imshow`)
+
+Esto crea una ventana GUI para mostrar la imagen.
+
+```python
+cv2.imshow("Título de Ventana", img)
+
+# Parámetros para waitKey:
+# 0 = Esperar por siempre una tecla
+# 1000 = Esperar 1000ms (1 segundo), luego continuar
+key = cv2.waitKey(0)
+
+if key == ord('q'):
+    print("Tecla salir presionada")
+
+cv2.destroyAllWindows()
+```
+
+#### El Problema de Jupyter Notebook
+
+Si ejecutas `cv2.imshow` dentro de un Jupyter Notebook (or Google Colab), a menudo **colgará el kernel** porque intenta abrir una ventana de escritorio desde un entorno de navegador.
+
+**Solución**: Usa Matplotlib.
+
+```python
+import matplotlib.pyplot as plt
+
+# 1. Convertir BGR a RGB (Matplotlib espera RGB)
+img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+# 2. Mostrar con PyPlot
+plt.figure(figsize=(10, 6)) # Opcional: Controlar tamaño de figura
+plt.imshow(img_rgb)
+plt.axis('off') # Ocultar números de ejes
+plt.show()
+```
+
+### Guardando Imágenes (`cv2.imwrite`)
+
+Guardar es sencillo, pero puedes controlar los niveles de compresión.
+
+```python
+# 1. Guardar como PNG (Sin pérdida)
+# Compresión por defecto es 3 (Rango: 0-9). Mayor = Archivo más pequeño, guardado más lento.
+cv2.imwrite("salida.png", img)
+
+# 2. Guardar como JPG (Con pérdida)
+# Calidad por defecto es 95 (Rango: 0-100). Mayor = Mejor calidad, archivo más grande.
+cv2.imwrite("salida.jpg", img)
+```
+
+#### Parámetros Avanzados de Compresión
+
+```python
+# Guardar un PNG altamente comprimido (Compresión máx: 9)
+cv2.imwrite("comprimido.png", img, [cv2.IMWRITE_PNG_COMPRESSION, 9])
+
+# Guardar un JPG de baja calidad (Calidad: 10%)
+cv2.imwrite("granulado.jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 10])
+```
+
+## Video
+
+El video es solo una secuencia de imágenes ("frames") mostrada rápidamente. OpenCV maneja archivos de video (`.mp4`) y cámaras de red (RTSP) usando exactamente la misma clase `VideoCapture`.
+
+### Leyendo Video y Cámaras
+
+```python
+# Abrir un archivo
+cap = cv2.VideoCapture("video.mp4")
+
+# O Abrir la webcam por defecto (0)
+# cap = cv2.VideoCapture(0)
+
+# O Abrir una Cámara IP (Stream RTSP)
+# Formato: rtsp://usuario:password@ip_address:puerto/ruta
+# cap = cv2.VideoCapture("rtsp://admin:12345@192.168.1.55/stream")
+
+if not cap.isOpened():
+    print("Error abriendo flujo de video")
+
+while True:
+    # 1. Leer un frame
+    # ret: Booleano (True si el frame es válido)
+    # frame: La matriz de imagen
+    ret, frame = cap.read()
+
+    # 2. Verificar si el video terminó o hubo error
+    if not ret:
+        print("Fin del flujo de video")
+        break
+
+    # 3. Procesar frame (ej., Escala de Grises)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # 4. Mostrar frame
+    cv2.imshow('Video', gray)
+
+    # 5. Salir con la tecla 'q'
+    # waitKey(1) espera 1ms. Si usas 0, ¡se pausará en cada frame!
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+```
+
+### Propiedades de Video (Metadatos)
+
+Puedes inspeccionar metadatos usando `.get()`. Esto es útil para inicializar tu VideoWriter correctamente.
+
+```python
+width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fps    = cap.get(cv2.CAP_PROP_FPS)
+count  = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+print(f"Resolución: {width}x{height} @ {fps} FPS")
+print(f"Total Frames: {count} ({count/fps:.2f} segundos)")
+```
+
+### Escribiendo Video (`VideoWriter`)
+
+Guardar video es más complicado que las imágenes porque debes definir un **Códec** (Compresor). Un "Códec" traduce las matrices de píxeles crudas a un formato de video comprimido.
+
+```python
+# 1. Definir el códec (código FourCC)
+# Códecs comunes:
+# 'mp4v' -> para .mp4 (Ampliamente soportado)
+# 'XVID' -> para .avi (Más antiguo, muy confiable)
+# 'MJPG' -> para .avi (Tamaño de archivo grande, pero bajo uso de CPU)
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+
+# 2. Crear el Writer
+# Argumentos: Ruta, Códec, FPS, Resolución
+# CRÍTICO: La tupla de resolución (Ancho, Alto) DEBE coincidir con el tamaño del frame exactamente.
+out = cv2.VideoWriter('output.mp4', fourcc, 20.0, (width, height))
+
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret: break
+
+    # ... Procesamiento ...
+
+    # Escribir el frame
+    out.write(frame)
+
+cap.release()
+out.release() # CRÍTICO: Finaliza el encabezado del archivo. Si olvidas esto, el video no se reproducirá.
+```
+
+## Referencia Resumen
+
+| Función                          | Uso               | Nota                                                             |
+| :------------------------------- | :---------------- | :--------------------------------------------------------------- |
+| `cv2.imread(ruta, flag)`         | Leer imagen       | Retorna `None` si falla. Usa `cv2.IMREAD_UNCHANGED` para Alfa.   |
+| `cv2.imshow(título, img)`        | Mostrar imagen    | **Evitar en Jupyter**. Usa Matplotlib en su lugar.               |
+| `cv2.imwrite(ruta, img, params)` | Guardar imagen    | Soporta flags de compresión (`JPEG_QUALITY`, `PNG_COMPRESSION`). |
+| `cap.get(prop_id)`               | Obtener Metadatos | Usa `CAP_PROP_FPS` o `CAP_PROP_FRAME_COUNT`.                     |
+| `out.release()`                  | Guardar Video     | **Obligatorio**. Sin él, los archivos de video se corrompen.     |
