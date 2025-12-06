@@ -1,7 +1,13 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 export default defineConfig({
+	markdown: {
+		remarkPlugins: [remarkMath],
+		rehypePlugins: [rehypeKatex],
+	},
 	// IMPORTANT: Do NOT configure Astro's own `i18n` here.
 	// Starlight will handle i18n based on its `locales` config.
 	integrations: [
@@ -13,6 +19,15 @@ export default defineConfig({
 				dark: './src/assets/robomous-logo-banner-white.png',
 				alt: 'Robomous Logo'
 			},
+			head: [
+				{
+					tag: 'link',
+					attrs: {
+						rel: 'stylesheet',
+						href: 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css'
+					}
+				}
+			],
 			social: [
 				{
 					icon: 'github',
