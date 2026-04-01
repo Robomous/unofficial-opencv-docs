@@ -1,0 +1,112 @@
+---
+title: "Building on Windows"
+description: "How to build OpenCV from source on Windows using Visual Studio, cmake-gui or Ninja, including opencv_contrib and development flags."
+sidebar:
+  order: 6
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+- **Visual Studio** (any recent version with the "Desktop development with C++" workload). Community Edition is free. VS 2019 or VS 2022 recommended.
+- **CMake ≥ 3.9.1** — Download from `cmake.org`. During installation, select "Add CMake to system PATH for all users."
+- **Git** — Download from `git-scm.com`. Enable "Git Bash" during installation.
+- **Python 3.x + NumPy** — Required only for Python bindings. Download from `python.org`. Install NumPy with `pip install numpy`.
+
+<Aside type="caution">
+The pre-built OpenCV Windows releases only work with specific MSVC versions. If you use MinGW or a different compiler, you **must** build from source.
+</Aside>
+
+## Method A — cmake-gui + Visual Studio (Recommended for Beginners)
+
+<Steps>
+1. **Launch cmake-gui.** Set "Where is the source code" to the `opencv` directory and "Where to build the binaries" to a separate `opencv/build` folder.
+
+2. **Click "Configure."** In the popup, select your Visual Studio version (e.g., "Visual Studio 17 2022") and set the platform to `x64`. Click Finish.
+
+3. **Set the required variables** in the CMake GUI:
+   - `OPENCV_EXTRA_MODULES_PATH` → path to `opencv_contrib/modules`
+   - `BUILD_TESTS` → `ON`
+   - `BUILD_PERF_TESTS` → `ON`
+   - `OPENCV_TEST_DATA_PATH` → path to `opencv_extra/testdata`
+
+4. **Click "Generate."** This produces an `OpenCV.sln` Visual Studio solution file in the build directory.
+
+5. **Open `OpenCV.sln`** in Visual Studio. Select the build configuration (Debug or Release) from the toolbar dropdown.
+
+6. **Build `ALL_BUILD`** — Right-click the `ALL_BUILD` project in Solution Explorer → Build. This compiles everything.
+
+7. **Run tests** — After building, test binaries are in `build\bin\Debug\` or `build\bin\Release\` depending on configuration.
+</Steps>
+
+## Method B — CLI with Ninja (Recommended for CI / Advanced Users)
+
+<Tabs>
+  <TabItem label="Debug">
+    ```bash
+    cmake -G Ninja ^
+      -DCMAKE_BUILD_TYPE=Debug ^
+      -DBUILD_TESTS=ON ^
+      -DBUILD_PERF_TESTS=ON ^
+      -DOPENCV_EXTRA_MODULES_PATH=..\opencv_contrib\modules ^
+      ..\opencv
+
+    cmake --build . --config Debug -j %NUMBER_OF_PROCESSORS%
+    ```
+  </TabItem>
+  <TabItem label="Release">
+    ```bash
+    cmake -G Ninja ^
+      -DCMAKE_BUILD_TYPE=Release ^
+      -DBUILD_TESTS=ON ^
+      -DOPENCV_EXTRA_MODULES_PATH=..\opencv_contrib\modules ^
+      ..\opencv
+
+    cmake --build . --config Release -j %NUMBER_OF_PROCESSORS%
+    ```
+  </TabItem>
+</Tabs>
+
+<Aside type="note">
+With the Visual Studio generator (multi-config), `CMAKE_BUILD_TYPE` is ignored. Debug/Release is selected at build time with `--config`. With Ninja (single-config), `CMAKE_BUILD_TYPE` must be set at configure time.
+</Aside>
+
+## Path Configuration After Build
+
+Without installing, DLLs must be accessible at runtime. Add the `bin` directory to `PATH`:
+
+```bash
+# PowerShell (temporary for current session)
+$env:PATH = "C:\path\to\opencv\build\bin;$env:PATH"
+
+# Or permanently via System Properties → Environment Variables
+```
+
+For Python bindings:
+```bash
+$env:PYTHONPATH = "C:\path\to\opencv\build\python_loader"
+```
+
+## Visual Studio IDE Tips
+
+- IntelliSense will automatically detect include paths from the CMake-generated `.vcxproj` files.
+- Debug builds produce libraries with a `d` suffix: `opencv_world480d.dll`.
+- Set the "Startup Project" to `opencv_test_core` or any other test to debug individual tests with F5.
+- Use the "Test Explorer" window (Test → Test Explorer) if CMake has registered CTest tests.
+
+## Known Issues on Windows
+
+<Aside type="danger">
+**Python import error after Python 3.9+** — Python 3.9 changed DLL loading behavior. If you get `ImportError: DLL load failed while importing cv2`, add the OpenCV `bin` directory to the Windows DLL search path explicitly:
+
+```python
+import os
+os.add_dll_directory(r"C:\path\to\opencv\build\bin")
+import cv2
+```
+</Aside>
+
+<Aside type="caution">
+**FFmpeg on Windows** is automatically downloaded as a pre-built plugin DLL during CMake configuration. Ensure your build machine has internet access, or download it manually and set `FFMPEG_BINARIES_DIR`.
+</Aside>

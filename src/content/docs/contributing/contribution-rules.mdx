@@ -1,0 +1,103 @@
+---
+title: "Contribution Rules"
+description: "Official rules, workflows, and process for contributing code to OpenCV via GitHub pull requests."
+sidebar:
+  order: 2
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## The Pull Request Workflow
+
+<Steps>
+1. **Fork the repository** — Go to `github.com/opencv/opencv`, click Fork, and create a personal fork under your GitHub account. If contributing to extra modules, fork `github.com/opencv/opencv_contrib` as well.
+
+2. **Enable the pre-commit hook** — After cloning your fork, rename the pre-commit sample hook to activate it:
+   ```bash
+   mv .git/hooks/pre-commit.sample .git/hooks/pre-commit
+   chmod +x .git/hooks/pre-commit
+   ```
+   This hook automatically checks for whitespace errors before each commit.
+
+3. **Choose the correct base branch** — For OpenCV 4.x patches, target the `4.x` branch. For OpenCV 5.x (current development), target `5.x`. Consult the Branches wiki page at `github.com/opencv/opencv/wiki/Branches` when in doubt. Never target `master` for new contributions.
+
+4. **Create a topic branch** — Use a descriptive name for your branch:
+   ```bash
+   git checkout -b fix-resize-interpolation    # for a bugfix
+   git checkout -b add-clahe-gpu-support       # for a new feature
+   ```
+
+5. **Write your code** — Follow the Coding Style Guide. All new C++ code must use C++11 standard (C++17 is allowed for 5.x). New algorithms belong in `opencv_contrib` first, not the main repository.
+
+6. **Add tests** — Accuracy tests go in `modules/<module>/test/`, performance tests in `modules/<module>/perf/`. New functionality requires at least one accuracy test.
+
+7. **Run the test suite locally** — See the [Local Testing](./local-testing) page. All tests must pass before submitting.
+
+8. **Push and open a PR** — Push your topic branch to your fork, then open a pull request against the correct upstream branch. The PR title should be concise and descriptive.
+
+9. **Respond to review feedback** — Reviewers are core developers. Respond within weeks, not months. Address all comments. When approved, a reviewer will post a 👍 or `:shipit:` emoji which signals the PR is ready to merge.
+</Steps>
+
+## The PR Checklist
+
+OpenCV uses a PR template (`.github/PULL_REQUEST_TEMPLATE.md`) with a required "Readiness Checklist". Every pull request must confirm all of the following:
+
+- [ ] I agree to contribute to the project under Apache 2 License
+- [ ] To the best of my knowledge, the proposed patch is not based on a code under GPL or another license that is incompatible with OpenCV
+- [ ] The PR is proposed to the proper branch
+- [ ] There is a reference to the original bug report and related work
+- [ ] There is accuracy test, performance test, and test data in `opencv_extra`
+- [ ] The PR description clearly explains the changes and their motivation
+- [ ] All related documentation has been updated
+- [ ] The sample code (if any) can be built and run with CMake
+
+<Aside type="caution">
+If your PR touches `opencv_extra` (test data), the branch name in `opencv_extra` must exactly match the branch name in your `opencv` or `opencv_contrib` PR.
+</Aside>
+
+## Issue Reporting
+
+### Bug Reports
+
+Bug reports require a system info block including:
+
+- OpenCV version
+- OS and platform
+- Compiler name and version
+- Detailed description of the problem
+- Steps to reproduce
+
+The issue template checklist also requires confirming that you have checked the documentation, FAQ, open issues, the forum at `forum.opencv.org`, and Stack Overflow, and that you have tried upgrading to the latest OpenCV release.
+
+### Feature Requests
+
+Significant API additions or changes use the **Evolution Proposals** process at `github.com/opencv/opencv/wiki/Evolution-Proposals`. Smaller features can use standard issues with the `evolution` label.
+
+<Aside type="danger">
+Do NOT open an issue to ask a usage question. Questions are not tracked on the issue tracker. Use the forum at `forum.opencv.org` instead.
+</Aside>
+
+## Code Review Process
+
+Pull requests go through a two-gate review:
+
+1. **Automated CI** — GitHub Actions and the OpenCV buildbot at `pullrequest.opencv.org` run first. All builders must be green before human review begins.
+2. **Human review** — Core developers review for: CI status, coding style, API design (correct use of `InputArray`/`OutputArray`, `CV_EXPORTS_W`), ABI compatibility, test coverage, patent/license cleanliness, and documentation updates.
+
+Final approval is a 👍 or `:shipit:` comment from a reviewer, which signals the PR is merge-ready to the maintainers.
+
+## GitHub Labels Reference
+
+| Label | Meaning |
+|---|---|
+| `bug` | Confirmed defect |
+| `feature` | New capability request |
+| `good first issue` | Suitable for newcomers |
+| `category: dnn` | Deep neural networks module |
+| `category: imgproc` | Image processing module |
+| `category: build/install` | Build system issue |
+| `platform: win32` | Windows-specific |
+| `platform: ios/osx` | Apple platform |
+| `needs investigation` | Requires more info |
+| `evolution` | Proposed API change |
+| `backport is needed` | Must be ported to older branch |

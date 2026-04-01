@@ -1,0 +1,155 @@
+---
+title: "Estilo de Código y Documentación"
+description: "Convenciones de codificación C++ de OpenCV, reglas de nomenclatura, configuración de clang-format y cómo escribir documentación con Doxygen."
+sidebar:
+  order: 3
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## La Regla Fundamental
+
+*La directriz de codificación más importante en OpenCV es: cada archivo debe usar un estilo de formato consistente. No reformatees el código existente al hacer cambios — minimiza el diff solo a tus cambios reales.*
+
+## Convenciones de C++
+
+### Estándar y Compilador
+
+C++11 es obligatorio para 4.x; C++17 está permitido para 5.x. `gcc`, `clang` y MSVC son compiladores admitidos.
+
+### Nomenclatura de Archivos y Ubicación
+
+- Todos los nombres de archivo: **solo minúsculas**
+- Archivos de cabecera (interfaz pública): extensión `.hpp`, en `modules/<module>/include/opencv2/<module>/`
+- Implementación: `.cpp`, en `modules/<module>/src/`
+- Pruebas de precisión: `modules/<module>/test/`
+- Pruebas de rendimiento: `modules/<module>/perf/`
+- Cada archivo debe comenzar con la cabecera de licencia Apache 2.0
+
+### Formato
+
+- Sangría: **4 espacios** (sin tabulaciones)
+- Longitud máxima de línea: **100 caracteres**
+- Solo caracteres ASCII en el código fuente
+
+### Convenciones de Nomenclatura
+
+| Elemento | Convención | Ejemplo |
+|---|---|---|
+| Clase | `UpperCamelCase` | `Algorithm`, `HOGDescriptor` |
+| Método / función | `lowerCamelCase` | `calcOpticalFlow()` |
+| Función con nombre de algoritmo | Nombre del autor capitalizado | `cv::Sobel()`, `cv::Canny()` |
+| Macro / constante enum | `ALL_CAPS_WITH_UNDERSCORES` | `CV_8UC3`, `BORDER_REFLECT` |
+| Variable local | `lowerCamelCase` | `srcImage`, `numPoints` |
+| Variable miembro | `lowerCamelCase` | `frameCount` |
+
+### Orden de la Firma de Función
+
+1. Parámetros de entrada (usar `const`)
+2. Parámetros de salida
+3. Flags y parámetros opcionales (con valores por defecto)
+
+Prefiere `InputArray`, `OutputArray` e `InputOutputArray` para tipos de arrays flexibles en lugar de `cv::Mat` directamente. Todas las APIs públicas que deben exponerse a Python/Java deben usar `CV_EXPORTS_W`:
+
+```cpp
+CV_EXPORTS_W void resize(
+    InputArray src,
+    OutputArray dst,
+    Size dsize,
+    double fx = 0,
+    double fy = 0,
+    int interpolation = INTER_LINEAR
+);
+```
+
+## Clang-Format
+
+OpenCV proporciona un archivo `.clang-format` en la raíz del repositorio. Úsalo para formatear automáticamente tu código antes de hacer commit:
+
+```bash
+# Formatear un solo archivo
+clang-format -i src/myfeature.cpp
+
+# Formatear todos los archivos modificados (desde git diff)
+git diff --name-only HEAD | grep -E '\.(cpp|hpp|h)$' | xargs clang-format -i
+
+# Verificar formato sin modificar archivos
+clang-format --dry-run --Werror src/myfeature.cpp
+```
+
+<Aside type="tip">
+Los usuarios de VS Code pueden instalar la extensión "clang-format" y agregar lo siguiente a sus configuraciones para formatear automáticamente al guardar:
+
+```json
+"editor.formatOnSave": true,
+"[cpp]": {
+  "editor.defaultFormatter": "xaver.clang-format"
+}
+```
+</Aside>
+
+## Convenciones de Nomenclatura de Pruebas
+
+Las pruebas siguen el patrón de Google Test `TEST(<Suite>, <Case>)`:
+
+```cpp
+// Ejemplo de prueba de precisión
+TEST(Imgproc_Resize, accuracy)
+{
+    // ...
+}
+
+// Ejemplo de prueba de rendimiento
+PERF_TEST_P(Imgproc_Resize, resize,
+    Combine(Values(szVGA, sz1080p), Values(INTER_LINEAR, INTER_AREA)))
+{
+    // ...
+}
+```
+
+## Escritura de Documentación (Doxygen)
+
+OpenCV usa Doxygen para la documentación de la API. La documentación se escribe **en línea en los archivos de cabecera `.hpp`**. El patrón estándar:
+
+```cpp
+/** @brief Applies a Gaussian blur to an image.
+
+The function convolves the source image with the specified Gaussian kernel.
+
+@param src input image; the image can have any number of channels,
+    which are processed independently.
+@param dst output image of the same size and type as src.
+@param ksize Gaussian kernel size. ksize.width and ksize.height can
+    differ but they both must be positive and odd.
+@param sigmaX Gaussian kernel standard deviation in X direction.
+@param sigmaY Gaussian kernel standard deviation in Y direction.
+@param borderType pixel extrapolation method.
+@sa  sepFilter2D, filter2D, blur, boxFilter, bilateralFilter, medianBlur
+*/
+CV_EXPORTS_W void GaussianBlur(
+    InputArray src, OutputArray dst,
+    Size ksize, double sigmaX,
+    double sigmaY = 0,
+    int borderType = BORDER_DEFAULT
+);
+```
+
+Los tutoriales son archivos Markdown separados que usan comandos de Doxygen. Los ejemplos de código en múltiples lenguajes usan macros de alternancia:
+
+```markdown
+@add_toggle_cpp
+\snippet samples/cpp/myexample.cpp mysnippet
+@end_toggle
+
+@add_toggle_python
+\snippet samples/python/myexample.py mysnippet
+@end_toggle
+```
+
+<Aside type="note">
+La documentación se compila cada noche y se publica en `docs.opencv.org`. Los colaboradores pueden previsualizar la documentación localmente ejecutando la compilación de Doxygen:
+
+```bash
+cd build && cmake --build . --target doxygen
+```
+</Aside>

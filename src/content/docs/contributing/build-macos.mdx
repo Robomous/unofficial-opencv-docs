@@ -1,0 +1,141 @@
+---
+title: "Building on macOS"
+description: "How to build OpenCV from source on macOS with Xcode and Homebrew, including Apple Silicon (M-series) support and opencv_contrib."
+sidebar:
+  order: 7
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+<Steps>
+1. **Install Xcode** from the Mac App Store (required for the compiler toolchain).
+
+2. **Install Xcode Command Line Tools:**
+   ```bash
+   xcode-select --install
+   ```
+
+3. **Install Homebrew** (if not already installed):
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+
+4. **Install CMake and dependencies via Homebrew:**
+   ```bash
+   brew install cmake pkg-config
+   brew install jpeg libpng libtiff openexr
+   brew install eigen tbb
+   ```
+
+5. **Install Python and NumPy** (for Python bindings):
+   ```bash
+   brew install python3
+   pip3 install numpy
+   ```
+</Steps>
+
+## Build Steps (Intel and Apple Silicon)
+
+<Tabs>
+  <TabItem label="Intel (x86_64)">
+    ```bash
+    git clone https://github.com/opencv/opencv.git
+    git clone https://github.com/opencv/opencv_contrib.git
+    git clone https://github.com/opencv/opencv_extra.git
+
+    mkdir build_opencv && cd build_opencv
+
+    cmake \
+      -DCMAKE_BUILD_TYPE=Debug \
+      -DBUILD_TESTS=ON \
+      -DBUILD_PERF_TESTS=ON \
+      -DOPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules \
+      -DOPENCV_TEST_DATA_PATH=../opencv_extra/testdata \
+      ../opencv
+
+    make -j$(sysctl -n hw.ncpu)
+    ```
+  </TabItem>
+  <TabItem label="Apple Silicon (M1/M2/M3)">
+    ```bash
+    git clone https://github.com/opencv/opencv.git
+    git clone https://github.com/opencv/opencv_contrib.git
+    git clone https://github.com/opencv/opencv_extra.git
+
+    mkdir build_opencv && cd build_opencv
+
+    cmake \
+      -DCMAKE_BUILD_TYPE=Debug \
+      -DCMAKE_SYSTEM_PROCESSOR=arm64 \
+      -DCMAKE_OSX_ARCHITECTURES=arm64 \
+      -DWITH_OPENJPEG=OFF \
+      -DWITH_IPP=OFF \
+      -DBUILD_TESTS=ON \
+      -DBUILD_PERF_TESTS=ON \
+      -DOPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules \
+      -DOPENCV_TEST_DATA_PATH=../opencv_extra/testdata \
+      ../opencv
+
+    make -j$(sysctl -n hw.ncpu)
+    ```
+  </TabItem>
+</Tabs>
+
+<Aside type="caution">
+Homebrew installs to `/opt/homebrew` on Apple Silicon and `/usr/local` on Intel. Do NOT mix architectures — running an Intel build under Rosetta while using Apple Silicon libraries will cause cryptic linker errors.
+</Aside>
+
+## Xcode IDE Integration
+
+```bash
+# Generate Xcode project files
+cmake -G Xcode \
+  -DOPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules \
+  ../opencv
+
+# Open in Xcode
+open OpenCV.xcodeproj
+```
+
+In Xcode, Debug/Release is selected from the scheme toolbar. Set the build scheme to `ALL_BUILD` to compile everything, or select individual test targets.
+
+## VS Code on macOS
+
+VS Code with the CMake Tools extension works well. After building, set `OpenCV_DIR` in your project's `CMakeLists.txt` to the build directory:
+
+```cmake
+set(OpenCV_DIR "/path/to/build_opencv")
+find_package(OpenCV REQUIRED)
+```
+
+## Python Bindings on macOS
+
+```bash
+# After build, set PYTHONPATH to use cv2 from build dir
+export PYTHONPATH=/path/to/build_opencv/python_loader:/path/to/build_opencv/lib/python3/
+export DYLD_LIBRARY_PATH=/path/to/build_opencv/lib:$DYLD_LIBRARY_PATH
+
+python3 -c "import cv2; print(cv2.__version__)"
+```
+
+<Aside type="caution">
+Apple's System Integrity Protection (SIP) restricts `DYLD_LIBRARY_PATH` in some contexts. If `import cv2` fails despite correct `PYTHONPATH`, try running Python from a terminal session rather than an IDE, or use the Xcode scheme environment variables.
+</Aside>
+
+## Known Issues on macOS
+
+<Aside type="danger">
+**LAPACK type mismatch on macOS 14.4+**: Apple's vecLib changed the signature of `dgeev_` in Sequoia/late Sonoma, causing a build error in the `calib3d` module. Workaround: add `-DWITH_LAPACK=OFF` at configure time until the upstream fix is merged.
+</Aside>
+
+<Aside type="caution">
+**OpenMP on macOS**: Apple Clang does not support `-fopenmp` natively. If you need OpenMP, install LLVM via Homebrew:
+
+```bash
+brew install libomp llvm
+export CC=$(brew --prefix llvm)/bin/clang
+export CXX=$(brew --prefix llvm)/bin/clang++
+```
+</Aside>

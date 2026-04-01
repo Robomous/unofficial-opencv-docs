@@ -1,0 +1,285 @@
+---
+title: "Build on Jetson Nano"
+description: "How to compile OpenCV with CUDA support on NVIDIA Jetson Nano under JetPack 4.6 (CUDA 10.2), including swap expansion, full CMake config, and Jetson-specific gotchas."
+sidebar:
+  order: 9
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+![NVIDIA Jetson Nano Developer Kit](@assets/images/jetson/jetson.webp)
+
+## Hardware Reference
+
+The **Jetson Nano Developer Kit** specs relevant to this build:
+
+| Spec | Value |
+|---|---|
+| SoC | NVIDIA Tegra X1 (tegra210) |
+| GPU | Maxwell architecture, 128 CUDA cores |
+| CUDA compute capability | **5.3** |
+| RAM | 4 GB LPDDR4 (shared between CPU and GPU) |
+| Last supported JetPack | 4.6.x |
+
+**JetPack 4.6.x software stack:**
+
+| Component | Version |
+|---|---|
+| OS | Ubuntu 18.04 (L4T 32.7.x) |
+| CUDA | **10.2** |
+| cuDNN | **8.2** |
+| TensorRT | 8.2 |
+| Pre-installed OpenCV | 4.1.1 — **without CUDA support** |
+
+<Aside type="danger">
+The Jetson Nano's pre-installed OpenCV (4.1.1 from JetPack) has **no CUDA support**. You must build from source to get CUDA-accelerated OpenCV. `pip install opencv-python` and `sudo apt install libopencv-dev` will also provide versions without CUDA and will interfere with a source-built installation.
+</Aside>
+
+## Jetson Device Comparison
+
+| Device | Architecture | `CUDA_ARCH_BIN` | JetPack |
+|---|---|---|---|
+| Jetson Nano (original) | Maxwell | `5.3` | 4.6.x (Ubuntu 18.04) |
+| Jetson TX2 | Pascal | `6.2` | 4.6.x |
+| Jetson Xavier NX | Volta | `7.2` | 4.6.x / 5.x |
+| Jetson AGX Xavier | Volta | `7.2` | 4.6.x / 5.x |
+| Jetson Orin Nano | Ampere | `8.7` | 6.x (Ubuntu 22.04) |
+| Jetson Orin NX | Ampere | `8.7` | 6.x (Ubuntu 22.04) |
+| Jetson AGX Orin | Ampere | `8.7` | 6.x (Ubuntu 22.04) |
+
+## Step-by-Step Build
+
+<Steps>
+1. **Enlarge swap memory.**
+
+   The Jetson Nano has 4 GB RAM shared between CPU and GPU. Building OpenCV 4.6+ requires at least 8.5 GB total memory (RAM + swap) for a parallel 4-core build. With only the default 2 GB zram swap, the build will either fail with OOM errors or fall back to single-core compilation.
+
+   ```bash
+   # Check current memory — you need RAM + Swap > 8500 MB for a fast 4-core build
+   free -m
+
+   # Disable existing zram swap
+   sudo swapoff -a
+
+   # Create a 6 GB swap file on the microSD card (or USB drive — faster)
+   sudo fallocate -l 6G /var/swapfile
+   sudo chmod 600 /var/swapfile
+   sudo mkswap /var/swapfile
+   sudo swapon /var/swapfile
+
+   # Make permanent (add to fstab)
+   echo '/var/swapfile swap swap defaults 0 0' | sudo tee -a /etc/fstab
+
+   # Verify
+   free -m
+   ```
+
+2. **Set Jetson to maximum performance mode.**
+
+   ```bash
+   sudo jetson_clocks       # lock clocks at max
+   sudo nvpmodel -m 0       # MAXN mode (all 4 CPU cores, full GPU)
+   ```
+
+3. **Remove the pre-installed OpenCV** to avoid import conflicts.
+
+   ```bash
+   sudo apt-get purge libopencv-dev libopencv python3-opencv
+   sudo apt-get autoremove
+   sudo apt-get update
+   ```
+
+4. **Verify CUDA environment variables are set.**
+
+   CUDA should already be in PATH from JetPack, but confirm:
+
+   ```bash
+   nvcc --version   # should show CUDA 10.2
+   python3 -c "import ctypes; ctypes.cdll.LoadLibrary('libcuda.so.1')"
+   ```
+
+5. **Install build dependencies.**
+
+   ```bash
+   sudo apt-get update && sudo apt-get upgrade -y
+
+   sudo apt-get install -y \
+     build-essential cmake git pkg-config \
+     libavcodec-dev libavformat-dev libswscale-dev \
+     libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+     libxvidcore-dev libx264-dev \
+     libgtk-3-dev libcanberra-gtk3-module libcanberra-gtk-module \
+     libjpeg-dev libpng-dev libtiff-dev \
+     libtbb2 libtbb-dev \
+     libdc1394-22-dev \
+     libv4l-dev v4l-utils \
+     libhdf5-dev libhdf5-serial-dev \
+     libopenblas-dev liblapack-dev libblas-dev gfortran \
+     python3-dev python3-numpy python3-pip \
+     libopenjp2-7-dev
+
+   # cuDNN dev headers (already installed by JetPack 4.6)
+   sudo apt-get install -y libcudnn8-dev
+   ```
+
+6. **Clone repositories** — pin all three to the same version tag.
+
+   ```bash
+   OPENCV_VERSION="4.10.0"
+
+   cd ~
+   git clone --branch ${OPENCV_VERSION} https://github.com/opencv/opencv.git
+   git clone --branch ${OPENCV_VERSION} https://github.com/opencv/opencv_contrib.git
+   git clone https://github.com/opencv/opencv_extra.git
+   cd opencv_extra && git checkout ${OPENCV_VERSION} && cd ..
+
+   mkdir ~/opencv/build && cd ~/opencv/build
+   ```
+
+7. **Configure with CMake** (JetPack 4.6, CUDA 10.2).
+
+   ```bash
+   cmake \
+     -D CMAKE_BUILD_TYPE=RELEASE \
+     -D CMAKE_INSTALL_PREFIX=/usr \
+     -D OPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules \
+     -D OPENCV_TEST_DATA_PATH=~/opencv_extra/testdata \
+     -D WITH_CUDA=ON \
+     -D WITH_CUDNN=ON \
+     -D OPENCV_DNN_CUDA=ON \
+     -D CUDA_ARCH_BIN=5.3 \
+     -D CUDA_ARCH_PTX="" \
+     -D ENABLE_FAST_MATH=ON \
+     -D CUDA_FAST_MATH=ON \
+     -D WITH_CUBLAS=ON \
+     -D ENABLE_NEON=ON \
+     -D WITH_GSTREAMER=ON \
+     -D WITH_LIBV4L=ON \
+     -D WITH_TBB=ON \
+     -D WITH_GTK=ON \
+     -D WITH_OPENGL=ON \
+     -D WITH_QT=OFF \
+     -D BUILD_opencv_python3=ON \
+     -D PYTHON3_EXECUTABLE=$(which python3) \
+     -D PYTHON3_NUMPY_INCLUDE_DIRS=$(python3 -c "import numpy; print(numpy.get_include())") \
+     -D PYTHON3_PACKAGES_PATH=/usr/lib/python3/dist-packages \
+     -D BUILD_TESTS=OFF \
+     -D BUILD_PERF_TESTS=OFF \
+     -D BUILD_EXAMPLES=OFF \
+     -D OPENCV_GENERATE_PKGCONFIG=ON \
+     ..
+   ```
+
+   **Key flag notes:**
+   - `ENABLE_NEON=ON` — The ARM Cortex-A57 CPU supports NEON SIMD; this flag provides significant CPU-side speedups
+   - `CMAKE_INSTALL_PREFIX=/usr` — Keeps the installation consistent with other JetPack components
+   - `PYTHON3_PACKAGES_PATH=/usr/lib/python3/dist-packages` — Required on Jetson; without it, the Python `.so` is installed where Python cannot find it automatically
+   - `BUILD_TESTS=OFF`, `BUILD_EXAMPLES=OFF` — Disabled to save build time and disk space on the Nano
+
+8. **Build and install.**
+
+   ```bash
+   # Build using all 4 cores (requires the enlarged swap from Step 1)
+   make -j4
+
+   # If you run out of memory, fall back to single core:
+   # make -j1
+
+   # Install
+   sudo make install
+   sudo ldconfig
+
+   # Verify Python can find the new cv2
+   python3 -c "import cv2; print(cv2.__version__); print(cv2.getBuildInformation())"
+   ```
+
+   Look for `NVIDIA CUDA: YES` and `cuDNN: YES` in the `getBuildInformation()` output.
+
+9. **Verify CUDA works.**
+
+   ```python
+   import cv2
+
+   # Check CUDA device count — should be 1 on Jetson Nano
+   count = cv2.cuda.getCudaEnabledDeviceCount()
+   print(f"CUDA devices: {count}")
+
+   # Print only CUDA-related lines from build info
+   info = cv2.getBuildInformation()
+   for line in info.split('\n'):
+       if 'CUDA' in line or 'cuDNN' in line:
+           print(line)
+
+   # Test with GStreamer pipeline (Jetson-specific CSI camera)
+   pipeline = (
+       "nvarguscamerasrc ! "
+       "video/x-raw(memory:NVMM), width=1280, height=720, framerate=60/1, format=NV12 ! "
+       "nvvidconv flip-method=0 ! "
+       "video/x-raw, width=1280, height=720, format=BGRx ! "
+       "videoconvert ! "
+       "video/x-raw, format=BGR ! "
+       "appsink"
+   )
+   # cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
+   # print(f"CSI camera opened: {cap.isOpened()}")
+   ```
+
+10. **Post-install cleanup** (important for microSD longevity).
+
+    ```bash
+    # Remove the enlarged swap file — swap causes heavy write cycles on microSD
+    sudo swapoff /var/swapfile
+    sudo rm /var/swapfile
+    # Edit /etc/fstab and remove the swap line added in Step 1
+
+    # Optionally remove source directories to recover ~1.5 GB disk space
+    # (keep if you want examples or plan to rebuild)
+    # cd ~ && rm -rf opencv opencv_contrib
+    ```
+</Steps>
+
+<Aside type="note">
+**Expected build times on Jetson Nano:**
+- 4-core build with 8+ GB memory (4 GB RAM + 6 GB swap): **~1.5–2 hours**
+- 1-core build (insufficient memory): **~4–6 hours**
+</Aside>
+
+## Known Issues
+
+<Aside type="caution">
+**Pre-installed OpenCV version conflict:** After installing from source, running `python3 -c "import cv2"` may still import the old 4.1.1 from JetPack. Check the path: `python3 -c "import cv2; print(cv2.__version__, cv2.__file__)"`. If the path shows `/usr/lib/python3/dist-packages/cv2`, the new version is loaded correctly. If it shows a different path, adjust `PYTHONPATH`.
+
+**GStreamer CSI camera not working after rebuild:** If you rebuild with `-DWITH_GSTREAMER=OFF`, the camera pipeline will fail. Always keep `WITH_GSTREAMER=ON` on Jetson to support the `nvarguscamerasrc` source used with CSI cameras.
+
+**"No module named cv2.cuda":** The CUDA module was not included in the build. Re-run cmake, verify `CUDA_ARCH_BIN=5.3` is set, `WITH_CUDA=ON` appears as `YES` in the cmake summary, and `opencv_contrib` was cloned to the same version tag.
+
+**Build fails with undefined CUDA symbols:** Usually caused by a version mismatch between the `opencv` and `opencv_contrib` git tags. Ensure both repos are on the same branch: `git -C ~/opencv checkout 4.10.0 && git -C ~/opencv_contrib checkout 4.10.0`
+
+**NumPy 2.x compatibility warning:** If you encounter `_ARRAY_API not found` or "compiled against NumPy 1.x" errors, ensure a consistent NumPy version: `pip uninstall numpy -y && pip install numpy==2.x`. Also add `-DPYTHON3_NUMPY_INCLUDE_DIRS=$(python3 -c "import numpy; print(numpy.get_include())")` to the CMake command.
+</Aside>
+
+## Automated Script Alternatives
+
+<Aside type="tip">
+Three well-maintained community scripts exist that can be used as a reference or run directly:
+
+- **Q-engineering script:** `github.com/Qengineering/Install-OpenCV-Jetson-Nano` — auto-detects Nano vs Orin Nano, handles swap expansion, runs the full cmake + build + install sequence. Supports OpenCV 4.5.3 through 4.10.0+.
+- **JetsonHacks script:** `github.com/JetsonHacksNano/buildOpenCV` — older but well-documented; useful as a manual reference for the full flag set.
+- **NVIDIA official script:** `github.com/AastaNV/JEP` (in the `scripts/` directory) — NVIDIA's own install script with fewer customization options.
+</Aside>
+
+## Desktop vs Jetson Nano Comparison
+
+| Aspect | Desktop PC (Linux/Windows) | Jetson Nano |
+|---|---|---|
+| `CUDA_ARCH_BIN` | Match your GPU (e.g., `8.6` for RTX 3080) | Always `5.3` (Maxwell) |
+| CUDA version | Any recent CUDA Toolkit (12.x recommended) | CUDA 10.2 (JetPack 4.6.x) |
+| cuDNN | Download separately, copy to CUDA dir | Pre-installed with JetPack |
+| Build time | 20–60 minutes (with fast CPU) | 1.5–4 hours (swap required) |
+| Memory concerns | Rarely an issue | Critical — must expand swap to 6+ GB |
+| Python install path | `/usr/local/lib/python3.x/dist-packages/` | Must explicitly set `PYTHON3_PACKAGES_PATH` |
+| Install prefix | `/usr/local` (standard) | `/usr` (matches JetPack convention) |
+| `ENABLE_NEON` | Not applicable on x86 | Set `ON` for ARM NEON speedup |
+| GStreamer | Optional | Strongly recommended (CSI cameras) |
+| `BUILD_TESTS` | `ON` for development | `OFF` to save build time and disk |
+| Remove old OpenCV | Optional | Required — JetPack's cv2 shadows new build |

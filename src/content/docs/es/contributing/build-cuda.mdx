@@ -1,0 +1,355 @@
+---
+title: "Compilar con CUDA (Linux y Windows)"
+description: "Cómo compilar OpenCV desde el código fuente con soporte CUDA en Linux y Windows, incluyendo flags de CMake, selección de compute capability, integración con cuDNN y verificación."
+sidebar:
+  order: 8
+---
+
+import { Tabs, TabItem, Aside, Steps } from '@astrojs/starlight/components';
+
+Ninguna distribución precompilada de OpenCV — ni `pip install opencv-python`, ni los paquetes oficiales de Windows, ni `apt install libopencv-dev` — incluye los módulos CUDA. Desde OpenCV 4.0, todas las implementaciones aceleradas por CUDA están en `opencv_contrib`. Compilar desde el código fuente con `WITH_CUDA=ON` y `OPENCV_EXTRA_MODULES_PATH` apuntando a `opencv_contrib/modules` es la única forma de obtener soporte CUDA.
+
+## Flags Clave de CMake
+
+| Flag de CMake | Propósito | Notas |
+|---|---|---|
+| `WITH_CUDA=ON` | Activa la compilación de módulos CUDA | Interruptor maestro — todo lo demás depende de este |
+| `CUDA_ARCH_BIN` | Compute capability de la GPU objetivo (ej. `8.6`) | Especifícalo explícitamente para compilaciones más rápidas; `Auto` auto-detecta pero produce binarios muy grandes |
+| `CUDA_ARCH_PTX` | Genera código intermedio PTX (compatible hacia adelante) | Establece `""` para omitir o ej. `8.6` para incluir PTX para compilación JIT en GPUs futuras |
+| `WITH_CUDNN=ON` | Activa la integración con cuDNN | Requerido para el backend CUDA del DNN; cuDNN debe estar instalado primero |
+| `OPENCV_DNN_CUDA=ON` | Acelera específicamente el módulo DNN con CUDA | Solo necesita cuDNN, no toda la suite de módulos CUDA |
+| `ENABLE_FAST_MATH=ON` | Fast math a nivel de CPU (flag del compilador) | Intercambia precisión de punto flotante por velocidad |
+| `CUDA_FAST_MATH=ON` | Fast math a nivel de GPU (flag de nvcc) | El mismo intercambio pero para kernels GPU |
+| `WITH_CUBLAS=ON` | Activa rutinas BLAS de GPU con cuBLAS | Usado por varios módulos CUDA para operaciones matriciales |
+| `WITH_CUFFT=ON` | Activa cuFFT | FFT acelerada por GPU; usada por el módulo CUDA |
+| `ENABLE_CUDA_FIRST_CLASS_LANGUAGE=ON` | Soporte moderno de CMake para el lenguaje CUDA | Recomendado para CUDA 11+ y CMake 3.18+; reemplaza el legacy FindCUDA.cmake |
+| `BUILD_opencv_world=ON` | Agrupa todos los módulos en una sola DLL | Opcional; simplifica el despliegue en Windows |
+| `BUILD_opencv_cudacodec=OFF/ON` | Integración con NVIDIA Video Codec SDK | Requiere las cabeceras del Video Codec SDK por separado; OFF es el valor seguro por defecto |
+
+## CUDA_ARCH_BIN y Compute Capability
+
+Establecer `CUDA_ARCH_BIN` con la compute capability exacta de tu GPU es la decisión de compilación más impactante. `CUDA_GENERATION=Auto` permite que CMake detecte automáticamente la GPU instalada pero genera código para todas las arquitecturas soportadas por defecto, lo que resulta en tiempos de compilación muy largos y un binario más grande.
+
+| Arquitectura | Generación | Compute Capability | GPUs representativas |
+|---|---|---|---|
+| Kepler | Serie GTX 700 | 3.5, 3.7 | GTX 780, GTX Titan |
+| Maxwell | Serie GTX 900 | 5.0, 5.2 | GTX 980, GTX 970 |
+| Pascal | Serie GTX 10 | 6.0, 6.1 | GTX 1080, GTX 1060 |
+| Volta | Datacenter | 7.0 | Tesla V100 |
+| Turing | Serie RTX 20 | 7.5 | RTX 2080, GTX 1650 |
+| Ampere | Serie RTX 30 | 8.0, 8.6 | RTX 3090 (8.0), RTX 3080/3070/3060 (8.6) |
+| Ada Lovelace | Serie RTX 40 | 8.9 | RTX 4090, RTX 4080, RTX 4070 |
+| Hopper | Datacenter | 9.0 | H100 |
+
+**Encontrar la compute capability de tu GPU:**
+
+```bash
+# Linux: consultar con nvidia-smi
+nvidia-smi --query-gpu=compute_cap --format=csv
+
+# O mediante Python después de instalar CUDA
+python3 -c "import subprocess; print(subprocess.check_output(['nvidia-smi', '--query-gpu=compute_cap', '--format=csv,noheader']).decode())"
+```
+
+## Guía de Compilación
+
+<Tabs>
+  <TabItem label="Linux">
+
+**1. Instalar dependencias del sistema:**
+
+```bash
+sudo apt-get update
+
+sudo apt-get install -y build-essential cmake git pkg-config
+
+sudo apt-get install -y \
+  libavcodec-dev libavformat-dev libswscale-dev \
+  libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+  libxvidcore-dev libx264-dev
+
+sudo apt-get install -y \
+  libjpeg-dev libpng-dev libtiff-dev libopenexr-dev
+
+sudo apt-get install -y python3-dev python3-numpy
+
+sudo apt-get install -y libtbb2 libtbb-dev libeigen3-dev
+
+sudo apt-get install -y libv4l-dev v4l-utils
+
+sudo apt-get install -y libgtk-3-dev
+```
+
+**2. Instalar el CUDA Toolkit** (desde NVIDIA — NO uses el paquete cuda por defecto de apt):
+
+```bash
+# Visita https://developer.nvidia.com/cuda-downloads y sigue el instalador para tu versión de Ubuntu.
+# Después de instalar, añade CUDA al PATH:
+echo 'export PATH=/usr/local/cuda/bin:$PATH' >> ~/.bashrc
+echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH' >> ~/.bashrc
+source ~/.bashrc
+
+# Verificar
+nvcc --version
+nvidia-smi
+```
+
+**3. Instalar cuDNN** (opcional pero necesario para `OPENCV_DNN_CUDA=ON`):
+
+Descarga desde `developer.nvidia.com/cudnn-downloads` (requiere cuenta NVIDIA). Selecciona el tarball para tu versión de CUDA, luego:
+
+```bash
+# Ejemplo para cuDNN 9.x con CUDA 12.x
+tar -xvf cudnn-linux-x86_64-9.x.x.x_cuda12-archive.tar.xz
+sudo cp cudnn-*/include/cudnn*.h /usr/local/cuda/include/
+sudo cp cudnn-*/lib/libcudnn* /usr/local/cuda/lib64/
+sudo chmod a+r /usr/local/cuda/include/cudnn*.h /usr/local/cuda/lib64/libcudnn*
+sudo ldconfig
+```
+
+**4. Clonar y configurar:**
+
+```bash
+git clone https://github.com/opencv/opencv.git
+git clone https://github.com/opencv/opencv_contrib.git
+git clone https://github.com/opencv/opencv_extra.git
+
+mkdir opencv/build && cd opencv/build
+
+cmake \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=/usr/local \
+  -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
+  -DOPENCV_TEST_DATA_PATH=../../opencv_extra/testdata \
+  -DOPENCV_GENERATE_PKGCONFIG=ON \
+  -DWITH_CUDA=ON \
+  -DWITH_CUDNN=ON \
+  -DOPENCV_DNN_CUDA=ON \
+  -DCUDA_ARCH_BIN=8.6 \
+  -DCUDA_ARCH_PTX="" \
+  -DENABLE_FAST_MATH=ON \
+  -DCUDA_FAST_MATH=ON \
+  -DWITH_CUBLAS=ON \
+  -DWITH_CUFFT=ON \
+  -DWITH_TBB=ON \
+  -DWITH_GSTREAMER=ON \
+  -DWITH_V4L=ON \
+  -DBUILD_opencv_python3=ON \
+  -DPYTHON3_EXECUTABLE=$(which python3) \
+  -DPYTHON3_NUMPY_INCLUDE_DIRS=$(python3 -c "import numpy; print(numpy.get_include())") \
+  -DBUILD_TESTS=ON \
+  -DBUILD_PERF_TESTS=ON \
+  ..
+
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+```
+
+<Aside type="caution">
+**Versión de GCC incompatible:** CUDA 12.x soporta GCC hasta la versión 12 o 13 dependiendo de la versión menor. Si obtienes `error: #error -- unsupported GNU version!`, instala una versión de GCC compatible y establece las variables de entorno antes de ejecutar cmake:
+
+```bash
+sudo apt install gcc-12 g++-12
+export CC=/usr/bin/gcc-12
+export CXX=/usr/bin/g++-12
+```
+</Aside>
+
+  </TabItem>
+  <TabItem label="Windows">
+
+**Requisitos previos:**
+1. Visual Studio (cualquier versión reciente) con la carga de trabajo "Desarrollo de escritorio con C++"
+2. CMake ≥ 3.9 — añadir al PATH del sistema durante la instalación
+3. CUDA Toolkit desde `developer.nvidia.com/cuda-downloads` — el driver ya **no viene incluido** en el instalador del Toolkit en versiones recientes; instálalo por separado
+4. cuDNN (opcional): descarga el tarball desde `developer.nvidia.com/cudnn-downloads`, extráelo y copia `bin → CUDA_INSTALL/bin/x64`, `include → CUDA_INSTALL/include`, `lib → CUDA_INSTALL/lib`
+5. Python 3.x + NumPy para los bindings de Python (se recomienda Miniforge/Miniconda)
+
+<Aside type="caution">
+Si el PATH del sistema es demasiado largo, CUDA fallará al añadir su directorio bin durante la instalación. Añade manualmente `C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\vXX.X\bin` al PATH de usuario o del sistema.
+</Aside>
+
+**Compilación con el generador de Visual Studio (cmd.exe):**
+
+```bat
+set CMAKE_BUILD_PARALLEL_LEVEL=8
+
+"C:\Program Files\CMake\bin\cmake.exe" ^
+  -H"<RUTA_AL_CODIGO_FUENTE_OPENCV>" ^
+  -B"<RUTA_AL_DIRECTORIO_BUILD>" ^
+  -DOPENCV_EXTRA_MODULES_PATH="<RUTA_A_OPENCV_CONTRIB>/modules" ^
+  -G"Visual Studio 17 2022" -A x64 ^
+  -DWITH_CUDA=ON ^
+  -DCUDA_GENERATION=Auto ^
+  -DENABLE_CUDA_FIRST_CLASS_LANGUAGE=ON ^
+  -DWITH_CUDNN=ON ^
+  -DOPENCV_DNN_CUDA=ON ^
+  -DBUILD_opencv_world=ON ^
+  -DBUILD_EXAMPLES=ON ^
+  -DBUILD_opencv_python3=ON ^
+  -DPYTHON3_INCLUDE_DIR="<PYTHON_DIST>/include" ^
+  -DPYTHON3_LIBRARY="<PYTHON_DIST>/libs/python3XX.lib" ^
+  -DPYTHON3_EXECUTABLE="<PYTHON_DIST>/python.exe" ^
+  -DPYTHON3_NUMPY_INCLUDE_DIRS="<PYTHON_DIST>/lib/site-packages/numpy/_core/include" ^
+  -DPYTHON3_PACKAGES_PATH="<PYTHON_DIST>/Lib/site-packages"
+
+"C:\Program Files\CMake\bin\cmake.exe" --build "<RUTA_AL_DIRECTORIO_BUILD>" --target INSTALL --config Release
+```
+
+**Alternativa más rápida: Ninja Multi-Config (recomendado para compilaciones CUDA grandes):**
+
+```bat
+"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+
+"C:\Program Files\CMake\bin\cmake.exe" ^
+  -H"<RUTA_AL_CODIGO_FUENTE_OPENCV>" ^
+  -B"<RUTA_AL_DIRECTORIO_BUILD>" ^
+  -DOPENCV_EXTRA_MODULES_PATH="<RUTA_A_OPENCV_CONTRIB>/modules" ^
+  -G"Ninja Multi-Config" ^
+  -DCMAKE_BUILD_TYPE=Release ^
+  -DWITH_CUDA=ON ^
+  -DCUDA_GENERATION=Auto ^
+  -DENABLE_CUDA_FIRST_CLASS_LANGUAGE=ON ^
+  -DWITH_CUDNN=ON ^
+  -DOPENCV_DNN_CUDA=ON ^
+  -DBUILD_opencv_world=ON ^
+  -DBUILD_opencv_python3=ON ^
+  -DPYTHON3_INCLUDE_DIR="<PYTHON_DIST>/include" ^
+  -DPYTHON3_LIBRARY="<PYTHON_DIST>/libs/python3XX.lib" ^
+  -DPYTHON3_EXECUTABLE="<PYTHON_DIST>/python.exe" ^
+  -DPYTHON3_NUMPY_INCLUDE_DIRS="<PYTHON_DIST>/lib/site-packages/numpy/_core/include" ^
+  -DPYTHON3_PACKAGES_PATH="<PYTHON_DIST>/Lib/site-packages"
+
+"C:\Program Files\CMake\bin\cmake.exe" --build "<RUTA_AL_DIRECTORIO_BUILD>" --target install --config Release
+```
+
+**Referencia de rutas (placeholders):**
+- `<RUTA_AL_CODIGO_FUENTE_OPENCV>` — raíz del repositorio `opencv` clonado
+- `<RUTA_A_OPENCV_CONTRIB>` — raíz del repositorio `opencv_contrib` clonado
+- `<RUTA_AL_DIRECTORIO_BUILD>` — directorio vacío para la salida de la compilación
+- `<PYTHON_DIST>` — directorio de instalación de Miniforge/Python (ej. `C:\miniforge3`)
+- `python3XX.lib` — ej. `python311.lib` para Python 3.11
+
+<Aside type="caution">
+NO termines las rutas con una barra invertida `\` al pasarlas a CMake en Windows — usa barra diagonal `/` o asegúrate de que las rutas terminen con un carácter que no sea un separador.
+</Aside>
+
+  </TabItem>
+</Tabs>
+
+## Compilación Solo con DNN-CUDA (Alternativa más Rápida)
+
+Si solo necesitas CUDA para inferencia de redes neuronales y no para toda la suite de módulos CUDA, reduce significativamente el tiempo de compilación desactivando los otros módulos CUDA:
+
+```bash
+cmake \
+  -DWITH_CUDA=ON \
+  -DWITH_CUDNN=ON \
+  -DOPENCV_DNN_CUDA=ON \
+  -DCUDA_ARCH_BIN=8.6 \
+  -DBUILD_opencv_cudaarithm=OFF \
+  -DBUILD_opencv_cudabgsegm=OFF \
+  -DBUILD_opencv_cudafeatures2d=OFF \
+  -DBUILD_opencv_cudafilters=OFF \
+  -DBUILD_opencv_cudaimgproc=OFF \
+  -DBUILD_opencv_cudalegacy=OFF \
+  -DBUILD_opencv_cudaobjdetect=OFF \
+  -DBUILD_opencv_cudaoptflow=OFF \
+  -DBUILD_opencv_cudastereo=OFF \
+  -DBUILD_opencv_cudawarping=OFF \
+  -DBUILD_opencv_cudacodec=OFF \
+  ..
+```
+
+## Verificar la Compilación
+
+**Revisar la salida de la configuración de CMake.** Después de ejecutar `cmake ..`, busca:
+
+```
+NVIDIA CUDA:          YES (ver X.X, CUFFT CUBLAS FAST_MATH)
+  NVIDIA GPU arch:    86
+cuDNN:                YES (ver X.X.X)
+```
+
+Si estas líneas dicen `NO`, CUDA no fue encontrado y la compilación no incluirá módulos CUDA.
+
+**Verificar después de instalar:**
+
+```python
+import cv2
+
+# Debe imprimir la versión de OpenCV
+print(cv2.__version__)
+
+# Debe imprimir la información completa de la compilación — busca "CUDA: YES" en la sección NVIDIA
+print(cv2.getBuildInformation())
+
+# Cuenta los dispositivos CUDA disponibles — debe retornar > 0
+print(cv2.cuda.getCudaEnabledDeviceCount())
+```
+
+**Benchmark GPU vs CPU (GEMM):**
+
+```python
+import cv2
+import numpy as np
+import time
+
+npTmp = np.random.random((1024, 1024)).astype(np.float32)
+npMat1 = np.stack([npTmp, npTmp], axis=2)
+npMat2 = npMat1.copy()
+
+cuMat1 = cv2.cuda_GpuMat()
+cuMat2 = cv2.cuda_GpuMat()
+cuMat1.upload(npMat1)
+cuMat2.upload(npMat2)
+
+start = time.time()
+cv2.cuda.gemm(cuMat1, cuMat2, 1, None, 0, None, 1)
+print(f"CUDA GPU: {time.time() - start:.4f}s")
+
+start = time.time()
+cv2.gemm(npMat1, npMat2, 1, None, 0, None, 1)
+print(f"CPU:      {time.time() - start:.4f}s")
+```
+
+**Prueba del backend DNN con CUDA:**
+
+```python
+import cv2
+
+net = cv2.dnn.readNetFromONNX("your_model.onnx")
+net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+# Si la compilación fue exitosa, la inferencia se ejecutará en la GPU
+```
+
+## Problemas Conocidos
+
+<Aside type="danger">
+**`getCudaEnabledDeviceCount()` retorna 0:** El módulo CUDA está compilado pero no puede encontrar la GPU en tiempo de ejecución. Causas más comunes: drivers CUDA no instalados u obsoletos, valor incorrecto de `CUDA_ARCH_BIN`, o se está importando el módulo `cv2` incorrecto (una versión de pip sin CUDA está tomando precedencia sobre la compilada desde fuente).
+</Aside>
+
+<Aside type="danger">
+**Windows — `ImportError: DLL load failed` con Python 3.9+:** Python 3.9 cambió la carga de DLLs. Solución: añade explícitamente los directorios bin de CUDA y OpenCV antes de importar:
+
+```python
+import os
+os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\vXX.X\bin")
+os.add_dll_directory(r"C:\ruta\a\opencv\build\install\x64\vc17\bin")
+import cv2
+```
+</Aside>
+
+<Aside type="caution">
+**Windows SDK no encontrado:** Error común al compilar con Visual Studio. Asegúrate de que el Windows SDK correspondiente a tu versión de VS esté instalado mediante Visual Studio Installer → Modificar → Componentes individuales → Windows SDK (más reciente).
+</Aside>
+
+<Aside type="caution">
+**El cv2 de pip oculta tu compilación con CUDA:** Si `python3 -c "import cv2; print(cv2.__version__)"` retorna una versión sin CUDA, hay un `cv2` de pip instalado que toma precedencia. Elimínalo:
+
+```bash
+pip uninstall opencv-python opencv-contrib-python
+```
+</Aside>

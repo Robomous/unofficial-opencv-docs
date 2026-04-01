@@ -1,0 +1,75 @@
+---
+title: "Contributing to OpenCV"
+description: "Overview of how to contribute to the OpenCV project — code, documentation, testing, and community."
+sidebar:
+  order: 1
+---
+
+import { Card, CardGrid, Aside, Badge } from '@astrojs/starlight/components';
+
+OpenCV is maintained on GitHub at `github.com/opencv/opencv` and accepts contributions via pull requests. The `opencv_contrib` repository (`github.com/opencv/opencv_contrib`) holds extra and experimental modules — new algorithms typically start there before being promoted to the main repo. The official `CONTRIBUTING.md` in the main repository is a redirect to the GitHub wiki at `github.com/opencv/opencv/wiki/How_to_contribute`.
+
+<Aside type="note">
+OpenCV uses the **Apache 2.0** license (migrated from 3-clause BSD in v4.5.0). All contributions must be compatible with this license. There is no formal CLA — contributors agree to the license via the PR template checkbox.
+</Aside>
+
+## What You Can Contribute
+
+<CardGrid>
+  <Card title="General Contribution Rules" icon="list-format">
+    Fork workflow, PR checklist, issue templates, review process, and GitHub labels.
+
+    [Read more →](./contribution-rules)
+  </Card>
+  <Card title="Code Style & PR Guidelines" icon="pencil">
+    C++ naming conventions, clang-format configuration, and Doxygen documentation.
+
+    [Read more →](./code-style)
+  </Card>
+  <Card title="Local Testing Guide" icon="rocket">
+    Run accuracy and performance tests from the build folder without installing OpenCV.
+
+    [Read more →](./local-testing)
+  </Card>
+  <Card title="Build on Linux" icon="linux">
+    GCC/Clang, apt dependencies, CMake flags, and opencv_contrib on Linux.
+
+    [Read more →](./build-linux)
+  </Card>
+  <Card title="Build on Windows" icon="laptop">
+    Visual Studio, cmake-gui, Ninja, and MSVC-specific gotchas on Windows.
+
+    [Read more →](./build-windows)
+  </Card>
+  <Card title="Build on macOS" icon="apple">
+    Xcode, Homebrew, and Apple Silicon (M-series) build flags on macOS.
+
+    [Read more →](./build-macos)
+  </Card>
+  <Card title="Build with CUDA (Linux & Windows)" icon="rocket">
+    CMake flags, compute capability table, full CUDA build commands for Linux and Windows.
+
+    [Read more →](./build-cuda)
+  </Card>
+  <Card title="Build on Jetson Nano" icon="laptop">
+    JetPack 4.6, CUDA 10.2, swap expansion, and full CMake config for NVIDIA Jetson Nano.
+
+    [Read more →](./build-jetson)
+  </Card>
+</CardGrid>
+
+## Three Repositories You Need
+
+Most contributors work with three repositories:
+
+| Repository | Purpose |
+|---|---|
+| `github.com/opencv/opencv` | Core library — the main repository |
+| `github.com/opencv/opencv_contrib` | Extra modules — new algorithms start here |
+| `github.com/opencv/opencv_extra` | Test data — required for running the test suite |
+
+When adding a new algorithm, it must be submitted to `opencv_contrib` first. After proving stability and community interest, it may be promoted to the main repository.
+
+<Aside type="tip">
+If you have a question about OpenCV **usage**, do NOT open a GitHub issue. Use the OpenCV Q&A forum at `forum.opencv.org` or Stack Overflow with the `opencv` tag. GitHub issues are reserved for confirmed bugs and feature proposals.
+</Aside>
