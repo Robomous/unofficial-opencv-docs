@@ -1,0 +1,75 @@
+---
+title: "Contribuir a OpenCV"
+description: "Descripción general de cómo contribuir al proyecto OpenCV — código, documentación, pruebas y comunidad."
+sidebar:
+  order: 1
+---
+
+import { Card, CardGrid, Aside, Badge } from '@astrojs/starlight/components';
+
+OpenCV se mantiene en GitHub en `github.com/opencv/opencv` y acepta contribuciones a través de pull requests. El repositorio `opencv_contrib` (`github.com/opencv/opencv_contrib`) contiene módulos adicionales y experimentales — los nuevos algoritmos generalmente comienzan allí antes de ser promovidos al repositorio principal. El `CONTRIBUTING.md` oficial del repositorio principal es un redireccionamiento a la wiki de GitHub en `github.com/opencv/opencv/wiki/How_to_contribute`.
+
+<Aside type="note">
+OpenCV utiliza la licencia **Apache 2.0** (migrada desde BSD de 3 cláusulas en la versión 4.5.0). Todas las contribuciones deben ser compatibles con esta licencia. No existe un CLA formal — los colaboradores aceptan la licencia mediante la casilla de verificación de la plantilla de PR.
+</Aside>
+
+## Qué Puedes Contribuir
+
+<CardGrid>
+  <Card title="Reglas de Contribución" icon="list-format">
+    Flujo de trabajo con forks, lista de verificación de PRs, plantillas de issues, proceso de revisión y etiquetas de GitHub.
+
+    [Leer más →](./contribution-rules)
+  </Card>
+  <Card title="Estilo de Código y Directrices de PR" icon="pencil">
+    Convenciones de nomenclatura en C++, configuración de clang-format y documentación con Doxygen.
+
+    [Leer más →](./code-style)
+  </Card>
+  <Card title="Guía de Pruebas Locales" icon="rocket">
+    Ejecuta pruebas de precisión y rendimiento desde la carpeta de compilación sin instalar OpenCV.
+
+    [Leer más →](./local-testing)
+  </Card>
+  <Card title="Compilar en Linux" icon="linux">
+    GCC/Clang, dependencias con apt, flags de CMake y opencv_contrib en Linux.
+
+    [Leer más →](./build-linux)
+  </Card>
+  <Card title="Compilar en Windows" icon="laptop">
+    Visual Studio, cmake-gui, Ninja y problemas comunes con MSVC en Windows.
+
+    [Leer más →](./build-windows)
+  </Card>
+  <Card title="Compilar en macOS" icon="apple">
+    Xcode, Homebrew y flags de compilación para Apple Silicon (serie M) en macOS.
+
+    [Leer más →](./build-macos)
+  </Card>
+  <Card title="Compilar con CUDA (Linux y Windows)" icon="rocket">
+    Flags de CMake, tabla de compute capability y comandos completos de compilación con CUDA.
+
+    [Leer más →](./build-cuda)
+  </Card>
+  <Card title="Compilar en Jetson Nano" icon="laptop">
+    JetPack 4.6, CUDA 10.2, expansión de swap y configuración CMake completa para Jetson Nano.
+
+    [Leer más →](./build-jetson)
+  </Card>
+</CardGrid>
+
+## Los Tres Repositorios que Necesitas
+
+La mayoría de los colaboradores trabajan con tres repositorios:
+
+| Repositorio | Propósito |
+|---|---|
+| `github.com/opencv/opencv` | Biblioteca principal — el repositorio central |
+| `github.com/opencv/opencv_contrib` | Módulos adicionales — los nuevos algoritmos comienzan aquí |
+| `github.com/opencv/opencv_extra` | Datos de prueba — necesarios para ejecutar la suite de pruebas |
+
+Cuando añadas un nuevo algoritmo, debe enviarse primero a `opencv_contrib`. Tras demostrar estabilidad e interés de la comunidad, puede ser promovido al repositorio principal.
+
+<Aside type="tip">
+Si tienes una pregunta sobre el **uso** de OpenCV, NO abras un issue en GitHub. Usa el foro de preguntas y respuestas de OpenCV en `forum.opencv.org` o Stack Overflow con la etiqueta `opencv`. Los issues de GitHub están reservados para bugs confirmados y propuestas de características.
+</Aside>

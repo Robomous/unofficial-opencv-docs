@@ -1,0 +1,167 @@
+---
+title: "Compilación en Linux"
+description: "Cómo compilar OpenCV desde el código fuente en Linux con GCC o Clang, incluyendo los módulos adicionales opencv_contrib y flags de desarrollo/depuración."
+sidebar:
+  order: 5
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Requisitos Previos
+
+Instala los paquetes necesarios con `apt`:
+
+```bash
+# Actualizar el índice de paquetes
+sudo apt-get update
+
+# Herramientas de compilación principales (elige un compilador)
+sudo apt-get install -y build-essential cmake git pkg-config
+
+# Opcional: usa Ninja para compilaciones más rápidas
+sudo apt-get install -y ninja-build
+
+# Bibliotecas de medios/codecs requeridas
+sudo apt-get install -y \
+  libgtk2.0-dev \
+  libavcodec-dev \
+  libavformat-dev \
+  libswscale-dev
+
+# Bindings de Python 3
+sudo apt-get install -y \
+  python3-dev \
+  python3-numpy
+
+# Bibliotecas de formatos de imagen
+sudo apt-get install -y \
+  libjpeg-dev \
+  libpng-dev \
+  libtiff-dev \
+  libopenexr-dev
+
+# Bibliotecas de rendimiento opcionales
+sudo apt-get install -y \
+  libtbb2 \
+  libtbb-dev \
+  libeigen3-dev
+
+# Soporte de cámara opcional
+sudo apt-get install -y \
+  libdc1394-dev \
+  libgstreamer1.0-dev \
+  libgstreamer-plugins-base1.0-dev
+```
+
+## Compilación Paso a Paso
+
+<Steps>
+1. **Clona los tres repositorios:**
+   ```bash
+   git clone https://github.com/opencv/opencv.git
+   git clone https://github.com/opencv/opencv_contrib.git
+   git clone https://github.com/opencv/opencv_extra.git
+   ```
+
+2. **Crea un directorio de compilación:**
+   ```bash
+   mkdir opencv/build
+   cd opencv/build
+   ```
+
+3. **Configura con CMake (compilación de desarrollo / depuración):**
+   ```bash
+   cmake \
+     -DCMAKE_BUILD_TYPE=Debug \
+     -DBUILD_TESTS=ON \
+     -DBUILD_PERF_TESTS=ON \
+     -DBUILD_EXAMPLES=ON \
+     -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
+     -DOPENCV_TEST_DATA_PATH=../../opencv_extra/testdata \
+     ..
+   ```
+
+4. **Compila usando todos los núcleos de CPU disponibles:**
+   ```bash
+   cmake --build . -j$(nproc)
+   # O usando make directamente:
+   make -j$(nproc)
+   ```
+
+5. **Verifica la compilación:**
+   ```bash
+   # Verificar información de compilación desde la línea de comandos
+   ./bin/opencv_version
+
+   # Verificar desde Python (sin instalar, configurando PYTHONPATH)
+   export PYTHONPATH=$(pwd)/python_loader:$(pwd)/lib/python3/
+   export LD_LIBRARY_PATH=$(pwd)/lib:$LD_LIBRARY_PATH
+   python3 -c "import cv2; print(cv2.getBuildInformation())"
+   ```
+</Steps>
+
+## Uso de OpenCV desde el Directorio de Compilación (Sin Instalar)
+
+Los proyectos CMake que dependen de OpenCV pueden usar el directorio de compilación directamente configurando `OpenCV_DIR`:
+
+```bash
+# En el CMakeLists.txt de tu propio proyecto:
+# find_package(OpenCV REQUIRED)
+# ...luego configura apuntando al directorio de compilación:
+
+cmake -DOpenCV_DIR=/ruta/a/opencv/build ..
+```
+
+<Aside type="tip">
+Este es el enfoque recomendado para el desarrollo activo — puedes recompilar OpenCV y probar inmediatamente tu proyecto dependiente sin ejecutar `make install`.
+</Aside>
+
+## Compilación con Ninja (Alternativa más Rápida)
+
+```bash
+cmake -G Ninja \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DBUILD_TESTS=ON \
+  -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
+  ..
+
+ninja -j$(nproc)
+```
+
+## Release vs Debug vs RelWithDebInfo
+
+| Tipo de Compilación | Flags de GCC | Caso de Uso |
+|---|---|---|
+| `Debug` | `-g -O0` | Símbolos completos, sin optimización — depura el código paso a paso |
+| `Release` | `-O3 -DNDEBUG` | Máximo rendimiento, sin información de depuración |
+| `RelWithDebInfo` | `-O2 -g -DNDEBUG` | Optimizado + símbolos — ideal para perfilado |
+| `MinSizeRel` | `-Os -DNDEBUG` | Tamaño de binario mínimo |
+
+<Aside type="tip">
+Para perfilado, usa `RelWithDebInfo`. Añade `-DENABLE_PROFILING=ON` para incluir los flags `-pg` de `gprof`, y `-DWITH_TBB=OFF -DWITH_OPENMP=OFF -DWITH_IPP=OFF` para deshabilitar el threading y obtener perfiles limpios.
+</Aside>
+
+## Desactivar Módulos Específicos
+
+```bash
+# Compilar solo módulos específicos (resuelve dependencias automáticamente)
+cmake -DBUILD_LIST=core,imgproc,imgcodecs ..
+
+# Desactivar módulos individuales
+cmake -DBUILD_opencv_java=OFF \
+      -DBUILD_opencv_gapi=OFF \
+      ..
+
+# Desactivar las aplicaciones de prueba internas de OpenCV
+cmake -DBUILD_opencv_apps=OFF ..
+```
+
+## Problemas Conocidos en Linux
+
+<Aside type="caution">
+**Tres problemas comunes a tener en cuenta:**
+
+1. **Placas ARM (Raspberry Pi, Jetson):** Los errores internos del compilador durante compilaciones en paralelo son frecuentes. Reduce el paralelismo (`-j2`) o aumenta el espacio de intercambio.
+2. **Entornos virtuales de Python:** Es posible que todas las variables CMake `PYTHON3_*` necesiten rutas explícitas cuando se usa un entorno virtual. Elimina el directorio de compilación y reconfigura desde cero si falla la detección de Python.
+3. **Backend GUI GTK vs Qt:** GTK está disponible como plugin dinámico desde OpenCV 4.5.3. Usa `-DWITH_GTK=ON` para GTK o `-DWITH_QT=ON` para Qt. Solo un backend GUI está activo a la vez.
+</Aside>

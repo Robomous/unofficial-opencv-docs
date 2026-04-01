@@ -1,0 +1,155 @@
+---
+title: "Code Style & Documentation"
+description: "OpenCV C++ coding conventions, naming rules, clang-format configuration, and how to write Doxygen documentation."
+sidebar:
+  order: 3
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## The One Rule
+
+*The single most important coding guideline in OpenCV is: each file must use consistent formatting style. Do not reformat existing code when making changes — minimize the diff to only your actual changes.*
+
+## C++ Conventions
+
+### Standard and Compiler
+
+C++11 is required for 4.x; C++17 is permitted for 5.x. `gcc`, `clang`, and MSVC are all supported compilers.
+
+### File Naming and Location
+
+- All filenames: **lowercase only**
+- Header files (public interface): `.hpp` extension, in `modules/<module>/include/opencv2/<module>/`
+- Implementation: `.cpp`, in `modules/<module>/src/`
+- Accuracy tests: `modules/<module>/test/`
+- Performance tests: `modules/<module>/perf/`
+- Every file must start with the Apache 2.0 license header
+
+### Formatting
+
+- Indentation: **4 spaces** (no tabs)
+- Maximum line length: **100 characters**
+- Only ASCII characters in source code
+
+### Naming Conventions
+
+| Element | Convention | Example |
+|---|---|---|
+| Class | `UpperCamelCase` | `Algorithm`, `HOGDescriptor` |
+| Method / function | `lowerCamelCase` | `calcOpticalFlow()` |
+| Algorithm-named function | Author name capitalized | `cv::Sobel()`, `cv::Canny()` |
+| Macro / enum constant | `ALL_CAPS_WITH_UNDERSCORES` | `CV_8UC3`, `BORDER_REFLECT` |
+| Local variable | `lowerCamelCase` | `srcImage`, `numPoints` |
+| Member variable | `lowerCamelCase` | `frameCount` |
+
+### Function Signature Order
+
+1. Input parameters (use `const`)
+2. Output parameters
+3. Flags and optional parameters (with defaults)
+
+Prefer `InputArray`, `OutputArray`, and `InputOutputArray` for flexible array types over `cv::Mat` directly. All public APIs that should be exposed to Python/Java must use `CV_EXPORTS_W`:
+
+```cpp
+CV_EXPORTS_W void resize(
+    InputArray src,
+    OutputArray dst,
+    Size dsize,
+    double fx = 0,
+    double fy = 0,
+    int interpolation = INTER_LINEAR
+);
+```
+
+## Clang-Format
+
+OpenCV provides a `.clang-format` file at the repository root. Use it to auto-format your code before committing:
+
+```bash
+# Format a single file
+clang-format -i src/myfeature.cpp
+
+# Format all changed files (from git diff)
+git diff --name-only HEAD | grep -E '\.(cpp|hpp|h)$' | xargs clang-format -i
+
+# Check formatting without changing files
+clang-format --dry-run --Werror src/myfeature.cpp
+```
+
+<Aside type="tip">
+VS Code users can install the "clang-format" extension and add the following to their settings for automatic formatting on save:
+
+```json
+"editor.formatOnSave": true,
+"[cpp]": {
+  "editor.defaultFormatter": "xaver.clang-format"
+}
+```
+</Aside>
+
+## Test Naming Conventions
+
+Tests follow the Google Test naming pattern `TEST(<Suite>, <Case>)`:
+
+```cpp
+// Accuracy test example
+TEST(Imgproc_Resize, accuracy)
+{
+    // ...
+}
+
+// Performance test example
+PERF_TEST_P(Imgproc_Resize, resize,
+    Combine(Values(szVGA, sz1080p), Values(INTER_LINEAR, INTER_AREA)))
+{
+    // ...
+}
+```
+
+## Writing Documentation (Doxygen)
+
+OpenCV uses Doxygen for API documentation. Docs are written **inline in `.hpp` header files**. The standard pattern:
+
+```cpp
+/** @brief Applies a Gaussian blur to an image.
+
+The function convolves the source image with the specified Gaussian kernel.
+
+@param src input image; the image can have any number of channels,
+    which are processed independently.
+@param dst output image of the same size and type as src.
+@param ksize Gaussian kernel size. ksize.width and ksize.height can
+    differ but they both must be positive and odd.
+@param sigmaX Gaussian kernel standard deviation in X direction.
+@param sigmaY Gaussian kernel standard deviation in Y direction.
+@param borderType pixel extrapolation method.
+@sa  sepFilter2D, filter2D, blur, boxFilter, bilateralFilter, medianBlur
+*/
+CV_EXPORTS_W void GaussianBlur(
+    InputArray src, OutputArray dst,
+    Size ksize, double sigmaX,
+    double sigmaY = 0,
+    int borderType = BORDER_DEFAULT
+);
+```
+
+Tutorials are separate Markdown files using Doxygen commands. Multi-language code examples use toggle macros:
+
+```markdown
+@add_toggle_cpp
+\snippet samples/cpp/myexample.cpp mysnippet
+@end_toggle
+
+@add_toggle_python
+\snippet samples/python/myexample.py mysnippet
+@end_toggle
+```
+
+<Aside type="note">
+Documentation builds nightly and is published at `docs.opencv.org`. Contributors can preview documentation locally by running the Doxygen build:
+
+```bash
+cd build && cmake --build . --target doxygen
+```
+</Aside>

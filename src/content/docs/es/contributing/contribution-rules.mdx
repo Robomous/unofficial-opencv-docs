@@ -1,0 +1,103 @@
+---
+title: "Reglas de Contribución"
+description: "Reglas oficiales, flujos de trabajo y proceso para contribuir código a OpenCV mediante pull requests en GitHub."
+sidebar:
+  order: 2
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## El Flujo de Trabajo de Pull Request
+
+<Steps>
+1. **Haz un fork del repositorio** — Ve a `github.com/opencv/opencv`, haz clic en Fork y crea un fork personal en tu cuenta de GitHub. Si contribuyes a módulos adicionales, también haz fork de `github.com/opencv/opencv_contrib`.
+
+2. **Activa el hook pre-commit** — Después de clonar tu fork, renombra el hook de ejemplo pre-commit para activarlo:
+   ```bash
+   mv .git/hooks/pre-commit.sample .git/hooks/pre-commit
+   chmod +x .git/hooks/pre-commit
+   ```
+   Este hook verifica automáticamente los errores de espacios en blanco antes de cada commit.
+
+3. **Elige la rama base correcta** — Para parches de OpenCV 4.x, apunta a la rama `4.x`. Para OpenCV 5.x (desarrollo actual), apunta a `5.x`. Consulta la página wiki de Branches en `github.com/opencv/opencv/wiki/Branches` si tienes dudas. Nunca apuntes a `master` para nuevas contribuciones.
+
+4. **Crea una rama temática** — Usa un nombre descriptivo para tu rama:
+   ```bash
+   git checkout -b fix-resize-interpolation    # para una corrección de bug
+   git checkout -b add-clahe-gpu-support       # para una nueva funcionalidad
+   ```
+
+5. **Escribe tu código** — Sigue la Guía de Estilo de Código. Todo el código C++ nuevo debe usar el estándar C++11 (C++17 está permitido para 5.x). Los nuevos algoritmos pertenecen primero a `opencv_contrib`, no al repositorio principal.
+
+6. **Añade pruebas** — Las pruebas de precisión van en `modules/<module>/test/`, las pruebas de rendimiento en `modules/<module>/perf/`. La nueva funcionalidad requiere al menos una prueba de precisión.
+
+7. **Ejecuta la suite de pruebas localmente** — Consulta la página [Pruebas Locales](./local-testing). Todas las pruebas deben pasar antes de enviar el PR.
+
+8. **Sube tu rama y abre un PR** — Sube tu rama temática a tu fork, luego abre un pull request contra la rama upstream correcta. El título del PR debe ser conciso y descriptivo.
+
+9. **Responde a los comentarios de revisión** — Los revisores son desarrolladores principales. Responde en semanas, no en meses. Atiende todos los comentarios. Cuando sea aprobado, el revisor publicará un 👍 o `:shipit:` que indica que el PR está listo para fusionarse.
+</Steps>
+
+## La Lista de Verificación del PR
+
+OpenCV utiliza una plantilla de PR (`.github/PULL_REQUEST_TEMPLATE.md`) con una "Lista de Verificación de Preparación" obligatoria. Cada pull request debe confirmar todos los siguientes puntos:
+
+- [ ] Acepto contribuir al proyecto bajo la Licencia Apache 2
+- [ ] Según mi conocimiento, el parche propuesto no está basado en código bajo GPL u otra licencia incompatible con OpenCV
+- [ ] El PR se propone a la rama correcta
+- [ ] Hay una referencia al reporte de bug original y trabajo relacionado
+- [ ] Hay prueba de precisión, prueba de rendimiento y datos de prueba en `opencv_extra`
+- [ ] La descripción del PR explica claramente los cambios y su motivación
+- [ ] Toda la documentación relacionada ha sido actualizada
+- [ ] El código de ejemplo (si existe) puede compilarse y ejecutarse con CMake
+
+<Aside type="caution">
+Si tu PR toca `opencv_extra` (datos de prueba), el nombre de la rama en `opencv_extra` debe coincidir exactamente con el nombre de la rama en tu PR de `opencv` o `opencv_contrib`.
+</Aside>
+
+## Reporte de Issues
+
+### Reportes de Bugs
+
+Los reportes de bugs requieren un bloque de información del sistema que incluya:
+
+- Versión de OpenCV
+- Sistema operativo y plataforma
+- Nombre y versión del compilador
+- Descripción detallada del problema
+- Pasos para reproducirlo
+
+La lista de verificación de la plantilla de issue también requiere confirmar que has revisado la documentación, las preguntas frecuentes, los issues abiertos, el foro en `forum.opencv.org` y Stack Overflow, y que has intentado actualizar a la última versión de OpenCV.
+
+### Solicitudes de Funcionalidades
+
+Las adiciones o cambios significativos de API utilizan el proceso de **Evolution Proposals** en `github.com/opencv/opencv/wiki/Evolution-Proposals`. Las funcionalidades más pequeñas pueden usar issues estándar con la etiqueta `evolution`.
+
+<Aside type="danger">
+NO abras un issue para hacer una pregunta de uso. Las preguntas no se rastrean en el issue tracker. Usa el foro en `forum.opencv.org`.
+</Aside>
+
+## Proceso de Revisión de Código
+
+Los pull requests pasan por una revisión de dos etapas:
+
+1. **CI automatizado** — GitHub Actions y el buildbot de OpenCV en `pullrequest.opencv.org` se ejecutan primero. Todos los builders deben estar en verde antes de que comience la revisión humana.
+2. **Revisión humana** — Los desarrolladores principales revisan: estado de CI, estilo de código, diseño de API (uso correcto de `InputArray`/`OutputArray`, `CV_EXPORTS_W`), compatibilidad ABI, cobertura de pruebas, limpieza de patentes/licencias y actualizaciones de documentación.
+
+La aprobación final es un comentario 👍 o `:shipit:` de un revisor, que indica que el PR está listo para fusionarse.
+
+## Referencia de Etiquetas de GitHub
+
+| Etiqueta | Significado |
+|---|---|
+| `bug` | Defecto confirmado |
+| `feature` | Solicitud de nueva funcionalidad |
+| `good first issue` | Adecuado para principiantes |
+| `category: dnn` | Módulo de redes neuronales profundas |
+| `category: imgproc` | Módulo de procesamiento de imágenes |
+| `category: build/install` | Problema del sistema de compilación |
+| `platform: win32` | Específico de Windows |
+| `platform: ios/osx` | Plataforma Apple |
+| `needs investigation` | Requiere más información |
+| `evolution` | Cambio propuesto en la API |
+| `backport is needed` | Debe portarse a una rama anterior |

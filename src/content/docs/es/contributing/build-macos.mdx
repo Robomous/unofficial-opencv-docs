@@ -1,0 +1,141 @@
+---
+title: "Compilación en macOS"
+description: "Cómo compilar OpenCV desde el código fuente en macOS con Xcode y Homebrew, incluyendo soporte para Apple Silicon (serie M) y opencv_contrib."
+sidebar:
+  order: 7
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Requisitos Previos
+
+<Steps>
+1. **Instala Xcode** desde la Mac App Store (necesario para la cadena de herramientas del compilador).
+
+2. **Instala las Herramientas de Línea de Comandos de Xcode:**
+   ```bash
+   xcode-select --install
+   ```
+
+3. **Instala Homebrew** (si aún no está instalado):
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+
+4. **Instala CMake y dependencias con Homebrew:**
+   ```bash
+   brew install cmake pkg-config
+   brew install jpeg libpng libtiff openexr
+   brew install eigen tbb
+   ```
+
+5. **Instala Python y NumPy** (para los bindings de Python):
+   ```bash
+   brew install python3
+   pip3 install numpy
+   ```
+</Steps>
+
+## Pasos de Compilación (Intel y Apple Silicon)
+
+<Tabs>
+  <TabItem label="Intel (x86_64)">
+    ```bash
+    git clone https://github.com/opencv/opencv.git
+    git clone https://github.com/opencv/opencv_contrib.git
+    git clone https://github.com/opencv/opencv_extra.git
+
+    mkdir build_opencv && cd build_opencv
+
+    cmake \
+      -DCMAKE_BUILD_TYPE=Debug \
+      -DBUILD_TESTS=ON \
+      -DBUILD_PERF_TESTS=ON \
+      -DOPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules \
+      -DOPENCV_TEST_DATA_PATH=../opencv_extra/testdata \
+      ../opencv
+
+    make -j$(sysctl -n hw.ncpu)
+    ```
+  </TabItem>
+  <TabItem label="Apple Silicon (M1/M2/M3)">
+    ```bash
+    git clone https://github.com/opencv/opencv.git
+    git clone https://github.com/opencv/opencv_contrib.git
+    git clone https://github.com/opencv/opencv_extra.git
+
+    mkdir build_opencv && cd build_opencv
+
+    cmake \
+      -DCMAKE_BUILD_TYPE=Debug \
+      -DCMAKE_SYSTEM_PROCESSOR=arm64 \
+      -DCMAKE_OSX_ARCHITECTURES=arm64 \
+      -DWITH_OPENJPEG=OFF \
+      -DWITH_IPP=OFF \
+      -DBUILD_TESTS=ON \
+      -DBUILD_PERF_TESTS=ON \
+      -DOPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules \
+      -DOPENCV_TEST_DATA_PATH=../opencv_extra/testdata \
+      ../opencv
+
+    make -j$(sysctl -n hw.ncpu)
+    ```
+  </TabItem>
+</Tabs>
+
+<Aside type="caution">
+Homebrew instala en `/opt/homebrew` en Apple Silicon y en `/usr/local` en Intel. NO mezcles arquitecturas — ejecutar una compilación Intel bajo Rosetta mientras se usan bibliotecas de Apple Silicon causará errores de enlazador crípticos.
+</Aside>
+
+## Integración con el IDE Xcode
+
+```bash
+# Generar archivos de proyecto Xcode
+cmake -G Xcode \
+  -DOPENCV_EXTRA_MODULES_PATH=../opencv_contrib/modules \
+  ../opencv
+
+# Abrir en Xcode
+open OpenCV.xcodeproj
+```
+
+En Xcode, Debug/Release se selecciona desde la barra de esquemas. Establece el esquema de compilación en `ALL_BUILD` para compilar todo, o selecciona targets de prueba individuales.
+
+## VS Code en macOS
+
+VS Code con la extensión CMake Tools funciona bien. Después de compilar, configura `OpenCV_DIR` en el `CMakeLists.txt` de tu proyecto apuntando al directorio de compilación:
+
+```cmake
+set(OpenCV_DIR "/ruta/a/build_opencv")
+find_package(OpenCV REQUIRED)
+```
+
+## Bindings de Python en macOS
+
+```bash
+# Después de compilar, configura PYTHONPATH para usar cv2 desde el directorio de compilación
+export PYTHONPATH=/ruta/a/build_opencv/python_loader:/ruta/a/build_opencv/lib/python3/
+export DYLD_LIBRARY_PATH=/ruta/a/build_opencv/lib:$DYLD_LIBRARY_PATH
+
+python3 -c "import cv2; print(cv2.__version__)"
+```
+
+<Aside type="caution">
+La Protección de Integridad del Sistema (SIP) de Apple restringe `DYLD_LIBRARY_PATH` en algunos contextos. Si `import cv2` falla a pesar de tener `PYTHONPATH` correcto, intenta ejecutar Python desde una sesión de terminal en lugar de un IDE, o usa las variables de entorno del esquema de Xcode.
+</Aside>
+
+## Problemas Conocidos en macOS
+
+<Aside type="danger">
+**Incompatibilidad de tipos LAPACK en macOS 14.4+**: vecLib de Apple cambió la firma de `dgeev_` en Sequoia/Sonoma tardío, causando un error de compilación en el módulo `calib3d`. Solución: añade `-DWITH_LAPACK=OFF` en tiempo de configuración hasta que se fusione la corrección en el upstream.
+</Aside>
+
+<Aside type="caution">
+**OpenMP en macOS**: Apple Clang no soporta `-fopenmp` de forma nativa. Si necesitas OpenMP, instala LLVM con Homebrew:
+
+```bash
+brew install libomp llvm
+export CC=$(brew --prefix llvm)/bin/clang
+export CXX=$(brew --prefix llvm)/bin/clang++
+```
+</Aside>

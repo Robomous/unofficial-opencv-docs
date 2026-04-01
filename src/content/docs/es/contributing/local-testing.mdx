@@ -1,0 +1,197 @@
+---
+title: "Pruebas Locales sin Instalación"
+description: "Cómo ejecutar pruebas de precisión y rendimiento de OpenCV directamente desde la carpeta de compilación sin instalarlo en el sistema."
+sidebar:
+  order: 4
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+No necesitas instalar OpenCV para probarlo. Todos los binarios de prueba se producen en el directorio `<build_dir>/bin/` y pueden ejecutarse directamente desde allí. Este es el flujo de trabajo recomendado para los colaboradores.
+
+## Tipos de Pruebas
+
+OpenCV proporciona dos familias de binarios de prueba:
+
+- **Pruebas de precisión** (`opencv_test_<MODULE>`): fuente en `modules/<module>/test/`. Verifican la corrección — comprueban que los resultados coinciden con los valores esperados dentro de una tolerancia.
+- **Pruebas de rendimiento** (`opencv_perf_<MODULE>`): fuente en `modules/<module>/perf/`. Miden la velocidad de ejecución y comparan con líneas base.
+
+Ambos tipos se compilan por defecto cuando `BUILD_TESTS=ON` y `BUILD_PERF_TESTS=ON` están configurados en tiempo de compilación (están `ON` por defecto).
+
+## Configuración de Datos de Prueba
+
+<Steps>
+1. Clona `opencv_extra` — la rama debe coincidir con la versión de OpenCV que estás compilando:
+   ```bash
+   git clone https://github.com/opencv/opencv_extra.git
+   # Si pruebas una rama específica, por ejemplo 4.x:
+   cd opencv_extra && git checkout 4.x
+   ```
+
+2. Configura la variable de entorno para que las pruebas puedan encontrar los datos:
+   ```bash
+   # Linux / macOS
+   export OPENCV_TEST_DATA_PATH=/ruta/absoluta/a/opencv_extra/testdata
+
+   # Windows (PowerShell)
+   $env:OPENCV_TEST_DATA_PATH = "C:\ruta\a\opencv_extra\testdata"
+
+   # Windows (cmd.exe)
+   set OPENCV_TEST_DATA_PATH=C:\ruta\a\opencv_extra\testdata
+   ```
+
+3. Alternativamente, configúrala en tiempo de compilación con CMake para que quede integrada en la compilación:
+   ```bash
+   cmake -DOPENCV_TEST_DATA_PATH=../opencv_extra/testdata ..
+   ```
+</Steps>
+
+<Aside type="caution">
+Sin `OPENCV_TEST_DATA_PATH`, cualquier prueba que cargue una imagen o archivo de referencia será omitida o fallará. Siempre configura esta variable antes de ejecutar las pruebas.
+</Aside>
+
+## Método 1 — Invocación Directa de Binarios
+
+```bash
+cd <build_dir>
+
+# Ejecutar todas las pruebas de precisión para el módulo 'core'
+./bin/opencv_test_core
+
+# Ejecutar todas las pruebas de rendimiento para el módulo 'imgproc'
+./bin/opencv_perf_imgproc
+
+# En Windows la extensión es .exe
+.\bin\opencv_test_core.exe
+```
+
+**Filtrado con flags de GTest:**
+
+```bash
+# Ejecutar un caso de prueba específico (Suite.TestName)
+./bin/opencv_test_core --gtest_filter=Core_Merge.accuracy
+
+# Comodín: todas las pruebas que coincidan con un patrón
+./bin/opencv_test_core --gtest_filter=*CopyTo*
+
+# Ejecutar toda una suite
+./bin/opencv_test_core --gtest_filter=Core_*
+
+# Excluir pruebas lentas
+./bin/opencv_test_core --gtest_filter=-*Slow*
+
+# Listar todas las pruebas disponibles sin ejecutarlas
+./bin/opencv_test_core --gtest_list_tests
+
+# Repetir 3 veces en orden aleatorio (detección de inestabilidad)
+./bin/opencv_test_core --gtest_repeat=3 --gtest_shuffle
+```
+
+## Método 2 — CTest
+
+```bash
+cd <build_dir>
+
+# Ejecutar todas las pruebas registradas
+ctest
+
+# Con salida detallada
+ctest --verbose
+
+# Ejecución paralela (4 trabajos)
+ctest --parallel 4
+
+# Filtrar por regex (solo pruebas de precisión de core)
+ctest -R opencv_test_core
+
+# Excluir pruebas de CUDA
+ctest -E cuda
+
+# Solo pruebas de Python
+ctest -R python
+
+# Equivalente con cmake
+cmake --build . --target test
+```
+
+## Método 3 — El Script run.py (Recomendado para Pruebas de Rendimiento)
+
+El script `modules/ts/misc/run.py` es el ejecutor de pruebas más completo, especialmente para pruebas de rendimiento:
+
+```bash
+# Ejecutar TODAS las pruebas de rendimiento (modo por defecto)
+python modules/ts/misc/run.py <build_dir>
+
+# Ejecutar pruebas de precisión en su lugar (flag -a)
+python modules/ts/misc/run.py <build_dir> -a
+
+# Solo módulos específicos
+python modules/ts/misc/run.py <build_dir> -t core,imgproc
+
+# Pruebas de precisión para un módulo específico
+python modules/ts/misc/run.py <build_dir> -a -t core
+
+# Ejecución en seco: listar lo que se ejecutaría sin correr
+python modules/ts/misc/run.py <build_dir> -n
+
+# Pasar un filtro de gtest
+python modules/ts/misc/run.py <build_dir> -t core -- --gtest_filter=*CopyTo*
+
+# Ejecutar bajo Valgrind (solo Linux)
+python modules/ts/misc/run.py <build_dir> --valgrind
+
+# Compilaciones multi-configuración (Visual Studio / Xcode)
+python modules/ts/misc/run.py <build_dir> --configuration Release
+```
+
+<Aside type="caution">
+Dos notas importantes sobre `run.py`:
+
+1. `run.py` **nunca compila** el proyecto. Debes compilar todos los targets de prueba antes de ejecutarlo.
+2. `run.py` **no** configura `OPENCV_TEST_DATA_PATH` automáticamente en plataformas de escritorio. Configúrala tú mismo antes de llamar al script.
+</Aside>
+
+## Ejecución de Pruebas de Bindings de Python
+
+<Tabs>
+  <TabItem label="Linux / macOS">
+    ```bash
+    export PYTHONPATH=<build_dir>/python_loader:<build_dir>/lib/python3/
+    export LD_LIBRARY_PATH=<build_dir>/lib:$LD_LIBRARY_PATH
+    export OPENCV_TEST_DATA_PATH=/ruta/a/opencv_extra/testdata
+
+    # Ejecutar todas las pruebas de Python
+    python <opencv_src>/modules/python/test/test.py
+
+    # Con run.py
+    python <opencv_src>/modules/ts/misc/run.py <build_dir> -a -t python
+    ```
+  </TabItem>
+  <TabItem label="Windows">
+    ```bash
+    $env:PYTHONPATH = "<build_dir>\python_loader;<build_dir>\lib\python3\"
+    $env:OPENCV_TEST_DATA_PATH = "C:\ruta\a\opencv_extra\testdata"
+
+    python <opencv_src>\modules\python\test\test.py
+    ```
+  </TabItem>
+</Tabs>
+
+<Aside type="note">
+El flag de CMake `BUILD_opencv_python_tests=ON` debe estar configurado para que se genere la infraestructura de pruebas de Python. Esto es independiente de `BUILD_opencv_python3=ON`.
+</Aside>
+
+## Análisis de Resultados de Pruebas de Rendimiento
+
+```bash
+cd modules/ts/misc
+
+# Mostrar resultados de logs XML en forma tabular
+python report.py <build_dir>/*.xml -c median
+
+# Comparar dos ejecuciones
+python summary.py run1_core.xml run2_core.xml
+
+# Generar un gráfico de comparación
+python chart.py core.xml -f add:
+```

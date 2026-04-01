@@ -54,3 +54,51 @@
     min-width: 100%;
   }
 }
+
+/* ============================================================
+   Contributing Section — Platform badge colors
+   ============================================================ */
+
+/* Ensure aside components in the contributing section
+   have adequate spacing for dense technical content */
+.contributing-page .starlight-aside {
+  margin-block: 1.5rem;
+}
+
+/* Platform pill styling for inline OS references */
+.platform-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15em 0.5em;
+  border-radius: 0.25em;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+.platform-badge--linux {
+  background-color: #f97316;   /* orange */
+  color: #fff;
+}
+
+.platform-badge--windows {
+  background-color: #3b82f6;   /* blue */
+  color: #fff;
+}
+
+.platform-badge--macos {
+  background-color: #8b5cf6;   /* purple */
+  color: #fff;
+}
+
+/* Step list enhancements in contributing section */
+.sl-steps > ol > li::before {
+  font-weight: 700;
+}
+
+/* Wide code block tables (for CMake flag tables) */
+@media (min-width: 72rem) {
+  .contributing-page table {
+    font-size: 0.875rem;
+  }
+}

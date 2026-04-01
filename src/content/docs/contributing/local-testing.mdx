@@ -1,0 +1,197 @@
+---
+title: "Local Testing Without Installation"
+description: "How to run OpenCV accuracy tests and performance tests directly from the build folder without installing to the system."
+sidebar:
+  order: 4
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+You do not need to install OpenCV to test it. All test binaries are produced in the `<build_dir>/bin/` directory and can be run directly from there. This is the recommended workflow for contributors.
+
+## Test Types
+
+OpenCV provides two families of test binaries:
+
+- **Accuracy tests** (`opencv_test_<MODULE>`): source in `modules/<module>/test/`. Verify correctness — check that results match expected values within tolerance.
+- **Performance tests** (`opencv_perf_<MODULE>`): source in `modules/<module>/perf/`. Measure execution speed and compare against baselines.
+
+Both types are built by default when `BUILD_TESTS=ON` and `BUILD_PERF_TESTS=ON` are set at configure time (they are `ON` by default).
+
+## Setting Up Test Data
+
+<Steps>
+1. Clone `opencv_extra` — the branch must match the OpenCV version you are building:
+   ```bash
+   git clone https://github.com/opencv/opencv_extra.git
+   # If testing a specific branch, e.g. 4.x:
+   cd opencv_extra && git checkout 4.x
+   ```
+
+2. Set the environment variable so tests can find the data:
+   ```bash
+   # Linux / macOS
+   export OPENCV_TEST_DATA_PATH=/absolute/path/to/opencv_extra/testdata
+
+   # Windows (PowerShell)
+   $env:OPENCV_TEST_DATA_PATH = "C:\path\to\opencv_extra\testdata"
+
+   # Windows (cmd.exe)
+   set OPENCV_TEST_DATA_PATH=C:\path\to\opencv_extra\testdata
+   ```
+
+3. Alternatively, set it at CMake configure time so it is baked into the build:
+   ```bash
+   cmake -DOPENCV_TEST_DATA_PATH=../opencv_extra/testdata ..
+   ```
+</Steps>
+
+<Aside type="caution">
+Without `OPENCV_TEST_DATA_PATH`, any test that loads an image or reference file will be skipped or fail. Always set this variable before running tests.
+</Aside>
+
+## Method 1 — Direct Binary Invocation
+
+```bash
+cd <build_dir>
+
+# Run all accuracy tests for the 'core' module
+./bin/opencv_test_core
+
+# Run all performance tests for the 'imgproc' module
+./bin/opencv_perf_imgproc
+
+# On Windows the extension is .exe
+.\bin\opencv_test_core.exe
+```
+
+**Filtering with GTest flags:**
+
+```bash
+# Run a specific test case (Suite.TestName)
+./bin/opencv_test_core --gtest_filter=Core_Merge.accuracy
+
+# Wildcard: all tests matching a pattern
+./bin/opencv_test_core --gtest_filter=*CopyTo*
+
+# Run an entire suite
+./bin/opencv_test_core --gtest_filter=Core_*
+
+# Exclude slow tests
+./bin/opencv_test_core --gtest_filter=-*Slow*
+
+# List all available tests without running them
+./bin/opencv_test_core --gtest_list_tests
+
+# Repeat 3 times with random order (flakiness detection)
+./bin/opencv_test_core --gtest_repeat=3 --gtest_shuffle
+```
+
+## Method 2 — CTest
+
+```bash
+cd <build_dir>
+
+# Run all registered tests
+ctest
+
+# With verbose output
+ctest --verbose
+
+# Parallel execution (4 jobs)
+ctest --parallel 4
+
+# Filter by regex (only core accuracy tests)
+ctest -R opencv_test_core
+
+# Exclude CUDA tests
+ctest -E cuda
+
+# Only Python tests
+ctest -R python
+
+# Equivalent via cmake
+cmake --build . --target test
+```
+
+## Method 3 — The run.py Script (Recommended for Performance Tests)
+
+The `modules/ts/misc/run.py` script is the most full-featured test runner, especially for performance tests:
+
+```bash
+# Run ALL performance tests (default mode)
+python modules/ts/misc/run.py <build_dir>
+
+# Run accuracy tests instead (-a flag)
+python modules/ts/misc/run.py <build_dir> -a
+
+# Only specific modules
+python modules/ts/misc/run.py <build_dir> -t core,imgproc
+
+# Accuracy tests for a specific module
+python modules/ts/misc/run.py <build_dir> -a -t core
+
+# Dry run: list what would be executed without running
+python modules/ts/misc/run.py <build_dir> -n
+
+# Pass a gtest filter
+python modules/ts/misc/run.py <build_dir> -t core -- --gtest_filter=*CopyTo*
+
+# Run under Valgrind (Linux only)
+python modules/ts/misc/run.py <build_dir> --valgrind
+
+# Multi-config builds (Visual Studio / Xcode)
+python modules/ts/misc/run.py <build_dir> --configuration Release
+```
+
+<Aside type="caution">
+Two important notes about `run.py`:
+
+1. `run.py` **never builds** the project. You must build all test targets before running it.
+2. `run.py` does **not** set `OPENCV_TEST_DATA_PATH` automatically on desktop platforms. Set it yourself before calling the script.
+</Aside>
+
+## Running Python Binding Tests
+
+<Tabs>
+  <TabItem label="Linux / macOS">
+    ```bash
+    export PYTHONPATH=<build_dir>/python_loader:<build_dir>/lib/python3/
+    export LD_LIBRARY_PATH=<build_dir>/lib:$LD_LIBRARY_PATH
+    export OPENCV_TEST_DATA_PATH=/path/to/opencv_extra/testdata
+
+    # Run all Python tests
+    python <opencv_src>/modules/python/test/test.py
+
+    # Via run.py
+    python <opencv_src>/modules/ts/misc/run.py <build_dir> -a -t python
+    ```
+  </TabItem>
+  <TabItem label="Windows">
+    ```bash
+    $env:PYTHONPATH = "<build_dir>\python_loader;<build_dir>\lib\python3\"
+    $env:OPENCV_TEST_DATA_PATH = "C:\path\to\opencv_extra\testdata"
+
+    python <opencv_src>\modules\python\test\test.py
+    ```
+  </TabItem>
+</Tabs>
+
+<Aside type="note">
+The CMake flag `BUILD_opencv_python_tests=ON` must be set for the Python test infrastructure to be generated. This is separate from `BUILD_opencv_python3=ON`.
+</Aside>
+
+## Analyzing Performance Test Results
+
+```bash
+cd modules/ts/misc
+
+# Show results from XML logs in tabular form
+python report.py <build_dir>/*.xml -c median
+
+# Compare two runs
+python summary.py run1_core.xml run2_core.xml
+
+# Generate a comparison chart
+python chart.py core.xml -f add:
+```

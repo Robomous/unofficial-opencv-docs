@@ -1,0 +1,167 @@
+---
+title: "Building on Linux"
+description: "How to build OpenCV from source on Linux with GCC or Clang, including opencv_contrib extra modules and development/debug flags."
+sidebar:
+  order: 5
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+Install the required packages with `apt`:
+
+```bash
+# Update package index
+sudo apt-get update
+
+# Core build tools (choose one compiler)
+sudo apt-get install -y build-essential cmake git pkg-config
+
+# Optional: use Ninja for faster builds
+sudo apt-get install -y ninja-build
+
+# Required media/codec libraries
+sudo apt-get install -y \
+  libgtk2.0-dev \
+  libavcodec-dev \
+  libavformat-dev \
+  libswscale-dev
+
+# Python 3 bindings
+sudo apt-get install -y \
+  python3-dev \
+  python3-numpy
+
+# Image format libraries
+sudo apt-get install -y \
+  libjpeg-dev \
+  libpng-dev \
+  libtiff-dev \
+  libopenexr-dev
+
+# Optional performance libraries
+sudo apt-get install -y \
+  libtbb2 \
+  libtbb-dev \
+  libeigen3-dev
+
+# Optional camera support
+sudo apt-get install -y \
+  libdc1394-dev \
+  libgstreamer1.0-dev \
+  libgstreamer-plugins-base1.0-dev
+```
+
+## Step-by-Step Build
+
+<Steps>
+1. **Clone the three repositories:**
+   ```bash
+   git clone https://github.com/opencv/opencv.git
+   git clone https://github.com/opencv/opencv_contrib.git
+   git clone https://github.com/opencv/opencv_extra.git
+   ```
+
+2. **Create a build directory:**
+   ```bash
+   mkdir opencv/build
+   cd opencv/build
+   ```
+
+3. **Configure with CMake (development / debug build):**
+   ```bash
+   cmake \
+     -DCMAKE_BUILD_TYPE=Debug \
+     -DBUILD_TESTS=ON \
+     -DBUILD_PERF_TESTS=ON \
+     -DBUILD_EXAMPLES=ON \
+     -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
+     -DOPENCV_TEST_DATA_PATH=../../opencv_extra/testdata \
+     ..
+   ```
+
+4. **Build using all available CPU cores:**
+   ```bash
+   cmake --build . -j$(nproc)
+   # Or using make directly:
+   make -j$(nproc)
+   ```
+
+5. **Verify the build:**
+   ```bash
+   # Check build info from the command line
+   ./bin/opencv_version
+
+   # Check from Python (no install needed with PYTHONPATH set)
+   export PYTHONPATH=$(pwd)/python_loader:$(pwd)/lib/python3/
+   export LD_LIBRARY_PATH=$(pwd)/lib:$LD_LIBRARY_PATH
+   python3 -c "import cv2; print(cv2.getBuildInformation())"
+   ```
+</Steps>
+
+## Using OpenCV from the Build Directory (No Install)
+
+Downstream CMake projects can use the build directory directly by setting `OpenCV_DIR`:
+
+```bash
+# In your own project's CMakeLists.txt:
+# find_package(OpenCV REQUIRED)
+# ...then configure pointing to the build dir:
+
+cmake -DOpenCV_DIR=/path/to/opencv/build ..
+```
+
+<Aside type="tip">
+This is the recommended approach for active development — you can rebuild OpenCV and immediately test your downstream project without running `make install`.
+</Aside>
+
+## Ninja Build (Faster Alternative)
+
+```bash
+cmake -G Ninja \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DBUILD_TESTS=ON \
+  -DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
+  ..
+
+ninja -j$(nproc)
+```
+
+## Release vs Debug vs RelWithDebInfo
+
+| Build Type | GCC Flags | Use Case |
+|---|---|---|
+| `Debug` | `-g -O0` | Full symbols, no optimization — step through code in a debugger |
+| `Release` | `-O3 -DNDEBUG` | Maximum performance, no debug info |
+| `RelWithDebInfo` | `-O2 -g -DNDEBUG` | Optimized + symbols — best for profiling |
+| `MinSizeRel` | `-Os -DNDEBUG` | Smallest binary size |
+
+<Aside type="tip">
+For profiling, use `RelWithDebInfo`. Add `-DENABLE_PROFILING=ON` to include `-pg` flags for `gprof`, and `-DWITH_TBB=OFF -DWITH_OPENMP=OFF -DWITH_IPP=OFF` to disable threading for clean profiles.
+</Aside>
+
+## Disabling Specific Modules
+
+```bash
+# Build only specific modules (auto-resolves dependencies)
+cmake -DBUILD_LIST=core,imgproc,imgcodecs ..
+
+# Disable individual modules
+cmake -DBUILD_opencv_java=OFF \
+      -DBUILD_opencv_gapi=OFF \
+      ..
+
+# Disable OpenCV's internal test apps
+cmake -DBUILD_opencv_apps=OFF ..
+```
+
+## Known Issues on Linux
+
+<Aside type="caution">
+**Three common issues to be aware of:**
+
+1. **ARM boards (Raspberry Pi, Jetson):** Internal compiler errors during parallel builds are common. Reduce parallelism (`-j2`) or add swap space.
+2. **Python virtual environments:** All `PYTHON3_*` CMake variables may need explicit paths when using a venv. Delete the build directory and reconfigure from scratch if Python detection fails.
+3. **GTK vs Qt GUI backend:** GTK is available as a dynamic plugin since OpenCV 4.5.3. Use `-DWITH_GTK=ON` for GTK or `-DWITH_QT=ON` for Qt. Only one GUI backend is active at a time.
+</Aside>

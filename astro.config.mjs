@@ -86,6 +86,15 @@ export default defineConfig({
 					autogenerate: {
 						directory: 'image-preprocessing'
 					}
+				},
+				{
+					label: 'Contributing to OpenCV',
+					translations: {
+						'es-MX': 'Contribuir a OpenCV'
+					},
+					autogenerate: {
+						directory: 'contributing'
+					}
 				}
 			]
 		})
