@@ -1,0 +1,229 @@
+---
+title: Operaciones Morfológicas
+description: Limpia máscaras binarias con erosión, dilatación, apertura, cierre y otras transformaciones morfológicas usando elementos estructurantes.
+sidebar:
+  order: 4
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Image } from "astro:assets";
+import morphologyComparison from "../../../../assets/images/preprocessing/morphology-comparison.webp";
+
+Creaste una máscara binaria con [umbralización](/image-preprocessing/thresholding/), pero tiene ruido — pequeñas manchas blancas donde no deberían estar, o agujeros en objetos que deberían ser sólidos. Las operaciones morfológicas son el equipo de limpieza. Remodelan las regiones blancas (primer plano) de una imagen binaria expandiéndolas, contrayéndolas o refinándolas.
+
+## Elementos Estructurantes (Kernels)
+
+Antes de aplicar cualquier operación morfológica, necesitas un **elemento estructurante** — una pequeña forma que define _cómo_ la operación afecta el vecindario de cada píxel. Piénsalo como un "sello" que determina el patrón de expansión o contracción.
+
+```python
+import cv2
+import numpy as np
+
+# Create a 5x5 rectangular kernel
+rect = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+
+# Create a 5x5 elliptical kernel
+ellipse = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+
+# Create a 5x5 cross-shaped kernel
+cross = cv2.getStructuringElement(cv2.MORPH_CROSS, (5, 5))
+```
+
+```text
+MORPH_RECT (5x5):      MORPH_ELLIPSE (5x5):    MORPH_CROSS (5x5):
+┌───────────────┐       ┌───────────────┐       ┌───────────────┐
+│ 1  1  1  1  1 │       │ 0  0  1  0  0 │       │ 0  0  1  0  0 │
+│ 1  1  1  1  1 │       │ 1  1  1  1  1 │       │ 0  0  1  0  0 │
+│ 1  1  1  1  1 │       │ 1  1  1  1  1 │       │ 1  1  1  1  1 │
+│ 1  1  1  1  1 │       │ 1  1  1  1  1 │       │ 0  0  1  0  0 │
+│ 1  1  1  1  1 │       │ 0  0  1  0  0 │       │ 0  0  1  0  0 │
+└───────────────┘       └───────────────┘       └───────────────┘
+```
+
+**El tamaño del kernel importa**: Un kernel más grande produce un efecto más agresivo. Un kernel de 3×3 genera cambios sutiles; uno de 15×15 genera cambios drásticos. Empieza con tamaños pequeños.
+
+## Las Dos Primitivas
+
+Toda operación morfológica se construye a partir de dos operaciones básicas: **erosión** y **dilatación**.
+
+### Erosión — Contrae el Blanco
+
+La erosión desliza el kernel sobre la imagen. Un píxel permanece blanco **solo si TODOS los píxeles bajo el kernel son blancos**. Si aunque sea un vecino es negro, el píxel central se vuelve negro.
+
+El resultado: las regiones blancas se contraen, las pequeñas manchas blancas desaparecen y las conexiones delgadas se rompen.
+
+```python
+# Create a binary image (e.g., from thresholding)
+_, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+
+kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+
+# Erode: white regions shrink
+eroded = cv2.erode(binary, kernel, iterations=1)
+```
+
+```text
+Before erosion:          After erosion:
+┌─────────────────┐      ┌─────────────────┐
+│ . . . . . . . . │      │ . . . . . . . . │
+│ . ■ ■ ■ ■ ■ . . │      │ . . ■ ■ ■ . . . │
+│ . ■ ■ ■ ■ ■ . . │  →   │ . . ■ ■ ■ . . . │
+│ . ■ ■ ■ ■ ■ . . │      │ . . ■ ■ ■ . . . │
+│ . . . . . . . . │      │ . . . . . . . . │
+│ . . . ■ . . . . │      │ . . . . . . . . │  ← noise removed!
+└─────────────────┘      └─────────────────┘
+```
+
+### Dilatación — Expande el Blanco
+
+Lo opuesto de la erosión. Un píxel se vuelve blanco **si CUALQUIER píxel bajo el kernel es blanco**. Con un solo vecino blanco es suficiente.
+
+El resultado: las regiones blancas se expanden, los pequeños agujeros se rellenan y las regiones cercanas se fusionan.
+
+```python
+# Dilate: white regions grow
+dilated = cv2.dilate(binary, kernel, iterations=1)
+```
+
+```text
+Before dilation:         After dilation:
+┌─────────────────┐      ┌─────────────────┐
+│ . . . . . . . . │      │ ■ ■ ■ ■ ■ ■ . . │
+│ . ■ ■ ■ ■ ■ . . │      │ ■ ■ ■ ■ ■ ■ ■ . │
+│ . ■ ■ . ■ ■ . . │  →   │ ■ ■ ■ ■ ■ ■ ■ . │  ← hole filled!
+│ . ■ ■ ■ ■ ■ . . │      │ ■ ■ ■ ■ ■ ■ ■ . │
+│ . . . . . . . . │      │ ■ ■ ■ ■ ■ ■ ■ . │
+└─────────────────┘      └─────────────────┘
+```
+
+<Aside type="note">
+La erosión elimina el ruido pero contrae los objetos. La dilatación rellena agujeros pero expande los objetos. Ninguna es perfecta por sí sola — por eso existen las operaciones compuestas.
+</Aside>
+
+## Operaciones Compuestas
+
+`cv2.morphologyEx()` combina erosión y dilatación en secuencias específicas para obtener resultados más útiles:
+
+<Tabs>
+  <TabItem label="Opening">
+    ### Apertura (Erosión → Dilatación)
+
+    Elimina el pequeño ruido blanco sin reducir significativamente los objetos principales. La erosión destruye las pequeñas manchas; luego la dilatación restaura las regiones sobrevivientes a aproximadamente su tamaño original.
+
+    ```python
+    opened = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+    ```
+
+    **Úsalo cuando**: Tu máscara binaria tiene pequeños puntos/ruido blanco sobre el fondo negro.
+  </TabItem>
+  <TabItem label="Closing">
+    ### Cierre (Dilatación → Erosión)
+
+    Rellena los pequeños agujeros negros dentro de las regiones blancas sin expandirlas significativamente. La dilatación rellena los agujeros; luego la erosión devuelve los bordes expandidos a su posición original.
+
+    ```python
+    closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+    ```
+
+    **Úsalo cuando**: Tus objetos tienen pequeños agujeros o huecos negros que deberían rellenarse.
+  </TabItem>
+  <TabItem label="Gradient">
+    ### Gradiente Morfológico (Dilatación - Erosión)
+
+    Calcula la diferencia entre la imagen dilatada y la erosionada, dándote el **contorno** de cada objeto.
+
+    ```python
+    gradient = cv2.morphologyEx(binary, cv2.MORPH_GRADIENT, kernel)
+    ```
+
+    **Úsalo cuando**: Quieres obtener los bordes/contornos de los objetos a partir de una imagen binaria.
+  </TabItem>
+  <TabItem label="Top/Black Hat">
+    ### Top Hat y Black Hat
+
+    Menos comunes, pero poderosos para tareas específicas:
+
+    - **Top Hat** (Original - Apertura): Aísla manchas brillantes más pequeñas que el kernel.
+    - **Black Hat** (Cierre - Original): Aísla manchas oscuras más pequeñas que el kernel.
+
+    ```python
+    tophat = cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, kernel)
+    blackhat = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, kernel)
+    ```
+
+    **Úsalos cuando**: Necesitas extraer pequeñas características brillantes u oscuras de un fondo irregular (por ejemplo, texto sobre una superficie con textura).
+  </TabItem>
+</Tabs>
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={morphologyComparison}
+    alt="Comparación de erosión, dilatación, apertura, cierre y gradiente sobre una imagen binaria con ruido"
+    fit="contain"
+  />
+</div>
+
+<Aside type="tip">
+**Empieza con Apertura y Cierre.** Cubren el 90% de la limpieza de máscaras binarias. La apertura elimina el ruido; el cierre rellena agujeros. Aplícalos en secuencia para obtener un resultado limpio.
+</Aside>
+
+## El Parámetro iterations
+
+Todas las operaciones morfológicas aceptan un parámetro `iterations` que repite la operación varias veces. Esto es equivalente a usar un kernel más grande, pero te da un control más fino:
+
+```python
+# These two produce similar (not identical) results:
+# Option A: Large kernel, 1 iteration
+big_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (11, 11))
+result_a = cv2.erode(binary, big_kernel, iterations=1)
+
+# Option B: Small kernel, multiple iterations
+small_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+result_b = cv2.erode(binary, small_kernel, iterations=3)
+```
+
+## Ejemplo Práctico: Limpiar una Imagen Umbralizada
+
+Un flujo de preprocesamiento típico después de la umbralización:
+
+```python
+import cv2
+import numpy as np
+
+# 1. Load and threshold
+img = cv2.imread("photo.jpg")
+if img is None:
+    raise FileNotFoundError("Could not load image!")
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+_, binary = cv2.threshold(gray, 0, 255,
+                          cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+# 2. Create a kernel
+kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+
+# 3. Opening: Remove small white noise
+cleaned = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+
+# 4. Closing: Fill small black holes in objects
+cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, kernel)
+
+# 5. Display
+cv2.imshow("Original Threshold", binary)
+cv2.imshow("After Morphology", cleaned)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+<Aside type="caution">
+**¡El orden importa!** Erosión seguida de dilatación (Apertura) NO es lo mismo que dilatación seguida de erosión (Cierre). Resuelven problemas opuestos. Aplica primero la Apertura (para limpiar el ruido) y luego el Cierre (para rellenar agujeros).
+</Aside>
+
+## Lista de Verificación Resumen
+
+- [ ] **Elementos estructurantes**: `cv2.getStructuringElement()` con MORPH_RECT, MORPH_ELLIPSE o MORPH_CROSS. El tamaño controla la agresividad.
+- [ ] **Erosión** (`cv2.erode`): Contrae las regiones blancas, elimina pequeño ruido blanco. Todos los píxeles del kernel deben ser blancos.
+- [ ] **Dilatación** (`cv2.dilate`): Expande las regiones blancas, rellena pequeños agujeros. Con que cualquier píxel del kernel sea blanco es suficiente.
+- [ ] **Apertura** (MORPH_OPEN): Erosión → Dilatación. Elimina ruido blanco. La opción predilecta para limpiar máscaras con ruido.
+- [ ] **Cierre** (MORPH_CLOSE): Dilatación → Erosión. Rellena agujeros negros. Úsalo después de la Apertura para un resultado limpio.
+- [ ] **Gradiente** (MORPH_GRADIENT): Dilatación - Erosión. Extrae los contornos de los objetos.
+- [ ] **Iterations**: Múltiples pasadas con un kernel pequeño ≈ una pasada con un kernel grande.

@@ -1,0 +1,211 @@
+---
+title: Detección de Bordes y Gradientes
+description: Encuentra límites en imágenes usando detección de bordes con Sobel, Laplacian y Canny — la puerta de entrada a contornos y detección de objetos.
+sidebar:
+  order: 7
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+import { Image } from "astro:assets";
+import edgeDetectionComparison from "../../../../assets/images/preprocessing/edge-detection-comparison.webp";
+
+Los bordes son donde ocurre la acción. Marcan los límites entre objetos, las transiciones entre colores y los contornos de las formas. Encontrar bordes suele ser el último paso de preprocesamiento antes de la visión por computadora "de verdad" — la detección de contornos, el emparejamiento de características y el reconocimiento de objetos, todos comienzan con bordes.
+
+## ¿Qué es un Borde?
+
+Un borde es un cambio brusco en la intensidad de los píxeles. Matemáticamente, es donde el **gradiente** (primera derivada) de la imagen es grande.
+
+```text
+Fila de píxeles: [10, 10, 10, 200, 200, 200]
+                           ↑
+                      BORDE AQUÍ
+             (la intensidad salta de 10 a 200)
+```
+
+El gradiente en cada píxel te indica dos cosas:
+
+- **Magnitud**: Qué tan fuerte es el borde (salto grande = borde fuerte)
+- **Dirección**: Hacia dónde cambia la intensidad (horizontal, vertical, diagonal)
+
+$$G = \sqrt{G_x^2 + G_y^2}$$
+
+Donde $G_x$ es el gradiente en la dirección horizontal y $G_y$ es el gradiente vertical.
+
+## Operador Sobel
+
+El **operador Sobel** calcula gradientes convolucionando la imagen con dos kernels de 3×3 — uno para los cambios horizontales ($G_x$) y otro para los cambios verticales ($G_y$):
+
+```text
+Sobel X (bordes verticales):     Sobel Y (bordes horizontales):
+   ┌─────────────┐                 ┌────────────┐
+   │ -1   0   +1 │                 │ -1  -2  -1 │
+   │ -2   0   +2 │                 │  0   0   0 │
+   │ -1   0   +1 │                 │ +1  +2  +1 │
+   └─────────────┘                 └────────────┘
+```
+
+```python
+import cv2
+import numpy as np
+
+img = cv2.imread("photo.jpg", cv2.IMREAD_GRAYSCALE)
+
+# Always blur first to reduce noise
+blurred = cv2.GaussianBlur(img, (5, 5), 0)
+
+# Compute gradients in X and Y directions
+# Use CV_64F to capture negative gradients (dark-to-light transitions)
+sobel_x = cv2.Sobel(blurred, cv2.CV_64F, 1, 0, ksize=3)
+sobel_y = cv2.Sobel(blurred, cv2.CV_64F, 0, 1, ksize=3)
+
+# Convert back to uint8 (take absolute value first)
+abs_x = cv2.convertScaleAbs(sobel_x)
+abs_y = cv2.convertScaleAbs(sobel_y)
+
+# Combine X and Y gradients
+combined = cv2.addWeighted(abs_x, 0.5, abs_y, 0.5, 0)
+```
+
+<Aside type="caution">
+**La Trampa del uint8**: Si usas el `ddepth` por defecto (uint8), los gradientes negativos se recortan a 0. Esto hace que las transiciones de oscuro a claro sean invisibles — ¡pierdes la mitad de tus bordes! Siempre usa `cv2.CV_64F` y luego `cv2.convertScaleAbs()`:
+
+```python
+# WRONG — loses negative gradients
+sobel = cv2.Sobel(img, cv2.CV_8U, 1, 0)
+
+# CORRECT — captures all gradients, then takes absolute value
+sobel = cv2.Sobel(img, cv2.CV_64F, 1, 0)
+sobel = cv2.convertScaleAbs(sobel)
+```
+</Aside>
+
+### Operador Scharr
+
+Para kernels de 3×3, el **operador Scharr** es más preciso que Sobel. Utiliza valores de kernel diferentes que aproximan mejor el gradiente real:
+
+```python
+# Scharr in X direction (more accurate than Sobel for 3x3)
+scharr_x = cv2.Scharr(blurred, cv2.CV_64F, 1, 0)
+scharr_x = cv2.convertScaleAbs(scharr_x)
+```
+
+Usa Scharr cuando estés trabajando con un kernel de 3×3 y necesites la máxima precisión. Para kernels más grandes (5×5, 7×7), Sobel es la mejor opción.
+
+## Laplacian
+
+El **Laplacian** calcula la segunda derivada de la imagen, detectando bordes en todas las direcciones simultáneamente. A diferencia de Sobel (que te da X e Y por separado), el Laplacian produce un único mapa de bordes.
+
+$$\Delta I = \frac{\partial^2 I}{\partial x^2} + \frac{\partial^2 I}{\partial y^2}$$
+
+```python
+laplacian = cv2.Laplacian(blurred, cv2.CV_64F)
+laplacian = cv2.convertScaleAbs(laplacian)
+```
+
+La desventaja: el Laplacian es **más sensible al ruido** que Sobel, porque las segundas derivadas amplifican el ruido de alta frecuencia. Siempre aplica un desenfoque antes de usarlo.
+
+## Detección de Bordes con Canny
+
+**Canny** es el estándar de oro en detección de bordes. Desarrollado por John Canny en 1986, es un algoritmo de múltiples etapas que produce bordes limpios, delgados y bien conectados. La mayoría de las tareas de detección de bordes deberían comenzar aquí.
+
+<Steps>
+1. **Desenfoque Gaussiano**: Suaviza el ruido (Canny hace esto internamente, pero pre-desenfocando a menudo se obtienen mejores resultados).
+
+2. **Cálculo de Gradientes**: Calcula los gradientes de intensidad usando Sobel (internamente).
+
+3. **Supresión de No-Máximos**: Adelgaza los bordes a 1 píxel de ancho conservando solo los máximos locales en la dirección del gradiente.
+
+4. **Umbralización por Histéresis**: Usa dos umbrales para clasificar los píxeles de borde:
+   - Gradiente > `threshold2` (alto) → **Borde fuerte** (definitivamente un borde)
+   - Gradiente < `threshold1` (bajo) → **No es un borde** (se descarta)
+   - En medio → **Borde débil** (se conserva solo si está conectado a un borde fuerte)
+</Steps>
+
+```python
+# threshold1 = low threshold, threshold2 = high threshold
+edges = cv2.Canny(blurred, threshold1=50, threshold2=150)
+```
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={edgeDetectionComparison}
+    alt="Comparación de detección de bordes con Sobel X, Sobel Y, Sobel combinado, Laplacian y Canny"
+    fit="contain"
+  />
+</div>
+
+### Elegir los Umbrales de Canny
+
+Los dos umbrales controlan qué tan sensible es Canny:
+
+- **threshold1 bajo, threshold2 bajo**: Detecta más bordes (incluyendo ruido)
+- **threshold1 alto, threshold2 alto**: Detecta solo bordes fuertes y evidentes
+- **Proporción común**: `threshold1 = 0.5 * threshold2` funciona bien como punto de partida
+
+<Aside type="tip">
+**Una heurística popular**: Calcula la mediana de la intensidad de los píxeles y úsala para establecer los umbrales:
+
+```python
+median = np.median(blurred)
+lower = int(max(0, 0.7 * median))
+upper = int(min(255, 1.3 * median))
+edges = cv2.Canny(blurred, lower, upper)
+```
+</Aside>
+
+<Aside type="tip">
+**Siempre aplica desenfoque antes de Canny.** Aunque Canny incluye su propio desenfoque Gaussiano interno, aplicar `cv2.GaussianBlur()` primero te da más control y generalmente produce resultados más limpios.
+</Aside>
+
+## Elegir el Detector Correcto
+
+| Detector | Fortalezas | Debilidades | Mejor Para |
+| :--- | :--- | :--- | :--- |
+| **Sobel** | Rápido, direccional (X/Y por separado) | Bordes gruesos, requiere combinación | Cuando necesitas información sobre la dirección del gradiente |
+| **Scharr** | Más preciso que Sobel (solo 3×3) | El mismo problema de grosor que Sobel | Cálculo de gradientes de precisión |
+| **Laplacian** | Omnidireccional, salida única | Muy sensible al ruido | Vista rápida de bordes, detección de blobs |
+| **Canny** | Bordes limpios, delgados y conectados | Dos umbrales que ajustar | Detección de bordes de propósito general |
+
+<Aside type="tip">
+**Ante la duda, usa Canny.** Maneja bien la mayoría de los escenarios de detección de bordes. Baja a Sobel cuando necesites información direccional del gradiente (por ejemplo, para descriptores de características).
+</Aside>
+
+## Ejemplo Práctico: Pipeline Completo de Detección de Bordes
+
+```python
+import cv2
+import numpy as np
+
+# 1. Load the image
+img = cv2.imread("photo.jpg")
+if img is None:
+    raise FileNotFoundError("Could not load image!")
+
+# 2. Convert to grayscale
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+# 3. Blur to reduce noise
+blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+# 4. Apply Canny edge detection
+# Use the median heuristic for automatic threshold selection
+median = np.median(blurred)
+lower = int(max(0, 0.7 * median))
+upper = int(min(255, 1.3 * median))
+edges = cv2.Canny(blurred, lower, upper)
+
+# 5. Display results
+cv2.imshow("Original", img)
+cv2.imshow("Edges (Canny)", edges)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+## Lista de Verificación Resumen
+
+- [ ] **Gradientes de imagen**: Tasa de cambio en la intensidad de los píxeles. La magnitud indica la fuerza del borde, la dirección indica la orientación del borde.
+- [ ] **cv2.Sobel()**: Usa `cv2.CV_64F` para ddepth, luego `cv2.convertScaleAbs()`. Combina X e Y con `cv2.addWeighted()`.
+- [ ] **cv2.Scharr()**: Más preciso que Sobel para kernels de 3×3. El mismo patrón de uso.
+- [ ] **cv2.Laplacian()**: Segunda derivada, omnidireccional. Más sensible al ruido — siempre aplica desenfoque primero.
+- [ ] **cv2.Canny()**: El estándar de oro. Dos umbrales controlan la sensibilidad. Una buena proporción de inicio es `low = 0.5 * high`.
+- [ ] **Siempre aplica desenfoque primero**: El ruido crea bordes falsos. `GaussianBlur(img, (5,5), 0)` antes de cualquier detector de bordes.

@@ -1,0 +1,196 @@
+---
+title: Histogramas y Mejora de Contraste
+description: Analiza distribuciones de intensidad de píxeles con cv2.calcHist(), mejora el contraste con ecualización de histogramas y domina CLAHE.
+sidebar:
+  order: 6
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+import { Image } from "astro:assets";
+import histogramExamples from "../../../../assets/images/preprocessing/histogram-examples.webp";
+import claheComparison from "../../../../assets/images/preprocessing/clahe-comparison.webp";
+
+Un histograma es como un censo de tu imagen — en vez de contar personas por edad, cuentas píxeles por brillo. Este "gráfico de población" revela problemas de exposición que son invisibles a simple vista y habilita técnicas poderosas de mejora de contraste.
+
+## Calculando Histogramas con cv2.calcHist()
+
+`cv2.calcHist()` cuenta cuántos píxeles tienen cada valor de intensidad (0-255):
+
+```python
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+img = cv2.imread("photo.jpg", cv2.IMREAD_GRAYSCALE)
+
+# Compute the histogram
+# Parameters: [image], [channel], mask, [bins], [range]
+hist = cv2.calcHist([img], [0], None, [256], [0, 256])
+
+# Plot it
+plt.figure(figsize=(8, 4))
+plt.plot(hist, color='gray')
+plt.fill_between(range(256), hist.flatten(), alpha=0.3, color='gray')
+plt.xlabel("Pixel Intensity")
+plt.ylabel("Number of Pixels")
+plt.title("Image Histogram")
+plt.xlim([0, 256])
+plt.show()
+```
+
+<Aside type="caution">
+**La Trampa de los Corchetes**: `cv2.calcHist()` espera la imagen envuelta en una lista: `[img]`, no `img`. Lo mismo aplica para los canales y otros parámetros. Esto se debe a que puede calcular histogramas para múltiples imágenes y canales al mismo tiempo.
+</Aside>
+
+### Histogramas de Color
+
+Para imágenes en color, calcula histogramas separados para cada canal BGR:
+
+```python
+img_color = cv2.imread("photo.jpg")
+
+colors = ('b', 'g', 'r')
+plt.figure(figsize=(8, 4))
+
+for i, color in enumerate(colors):
+    hist = cv2.calcHist([img_color], [i], None, [256], [0, 256])
+    plt.plot(hist, color=color, label=color.upper())
+
+plt.legend()
+plt.xlabel("Pixel Intensity")
+plt.ylabel("Number of Pixels")
+plt.xlim([0, 256])
+plt.show()
+```
+
+## Lo que los Histogramas te Dicen
+
+La forma de un histograma revela de inmediato la calidad de exposición de la imagen:
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={histogramExamples}
+    alt="Cuatro imágenes con sus histogramas: oscura (agrupada a la izquierda), brillante (agrupada a la derecha), bajo contraste (pico estrecho) y buena exposición (distribuida uniformemente)"
+    fit="contain"
+  />
+</div>
+
+## Ecualización de Histogramas
+
+`cv2.equalizeHist()` redistribuye los valores de los píxeles para que se extiendan uniformemente por todo el rango. Estira el contraste remapeando las intensidades usando la función de distribución acumulada (CDF).
+
+```python
+# Input must be grayscale
+equalized = cv2.equalizeHist(gray)
+```
+
+El resultado: las imágenes oscuras se vuelven más brillantes, las imágenes desvanecidas ganan contraste y el histograma se vuelve más uniforme.
+
+<Aside type="caution">
+**¡Nunca equalices los canales BGR de forma independiente!** Si aplicas `equalizeHist()` a cada canal B, G, R por separado, el balance de color cambia drásticamente (los cielos azules pueden volverse verdes). En cambio, convierte a un espacio de color que separe la luminancia del color, ecualiza solo la luminancia y luego convierte de vuelta:
+
+```python
+# WRONG — shifts colors
+b, g, r = cv2.split(img)
+b = cv2.equalizeHist(b)
+g = cv2.equalizeHist(g)
+r = cv2.equalizeHist(r)
+bad = cv2.merge([b, g, r])
+
+# CORRECT — equalize luminance only (via YUV)
+yuv = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
+yuv[:, :, 0] = cv2.equalizeHist(yuv[:, :, 0])
+good = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR)
+```
+</Aside>
+
+## CLAHE — El Equalizador Inteligente
+
+La ecualización global de histogramas tiene un problema: aplica la misma transformación en todas partes. En una imagen con regiones tanto oscuras como brillantes, ecualizar globalmente puede **amplificar demasiado el ruido** en áreas ya brillantes, mientras que las áreas oscuras siguen quedando insatisfactorias.
+
+**CLAHE** (Contrast Limited Adaptive Histogram Equalization) resuelve esto al:
+
+1. Dividir la imagen en pequeños mosaicos
+2. Ecualizar cada mosaico de forma independiente
+3. Limitar la amplificación del contraste (la "CL" en CLAHE) para evitar la amplificación del ruido
+4. Mezclar suavemente los bordes entre mosaicos
+
+```python
+# Create a CLAHE object
+# clipLimit: contrast limiting factor (higher = more contrast, more noise)
+# tileGridSize: number of tiles (8x8 means the image is divided into 64 regions)
+clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+
+# Apply to a grayscale image
+enhanced = clahe.apply(gray)
+```
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={claheComparison}
+    alt="Comparación de una imagen oscura, ecualización global de histogramas y mejora con CLAHE"
+    fit="contain"
+  />
+</div>
+
+### Parámetros de CLAHE
+
+- **clipLimit** (por defecto 40.0): Controla cuánto se amplifica el contraste. Valores bajos (1.0-3.0) dan una mejora sutil. Valores más altos amplifican más pero arriesgan reintroducir ruido. Empieza con 2.0.
+- **tileGridSize** (por defecto (8, 8)): Controla qué tan "local" es la ecualización. Mosaicos más pequeños = más adaptativo. Mosaicos más grandes = más cercano a la ecualización global.
+
+<Aside type="tip">
+**CLAHE sobre LAB es una técnica estándar.** Para imágenes en color, convierte a LAB, aplica CLAHE solo al canal L (luminosidad) y luego convierte de vuelta. Esto mejora el contraste sin alterar los colores — es ampliamente usada en reconocimiento facial, imágenes médicas y mejora de fotos.
+</Aside>
+
+## Ejemplo Práctico: Mejorar una Foto Subexpuesta
+
+<Steps>
+1. Carga la imagen oscura/subexpuesta:
+
+   ```python
+   import cv2
+
+   img = cv2.imread("dark_photo.jpg")
+   if img is None:
+       raise FileNotFoundError("Could not load image!")
+   ```
+
+2. Convierte al espacio de color LAB:
+
+   ```python
+   lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+   l_channel, a_channel, b_channel = cv2.split(lab)
+   ```
+
+3. Aplica CLAHE al canal L (luminosidad):
+
+   ```python
+   clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+   enhanced_l = clahe.apply(l_channel)
+   ```
+
+4. Une los canales y convierte de vuelta a BGR:
+
+   ```python
+   enhanced_lab = cv2.merge([enhanced_l, a_channel, b_channel])
+   result = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2BGR)
+   ```
+
+5. Muestra el resultado:
+
+   ```python
+   cv2.imshow("Original (Dark)", img)
+   cv2.imshow("CLAHE Enhanced", result)
+   cv2.waitKey(0)
+   cv2.destroyAllWindows()
+   ```
+</Steps>
+
+## Lista de Verificación Resumen
+
+- [ ] **cv2.calcHist()**: Pasa `[img]` (¡en lista!), `[channel]`, máscara, `[bins]`, `[range]`. Devuelve un arreglo de 256×1 con el conteo de píxeles.
+- [ ] **Lectura de histogramas**: Agrupado a la izquierda = oscuro, agrupado a la derecha = brillante, pico estrecho = bajo contraste, distribuido = buena exposición.
+- [ ] **cv2.equalizeHist()**: Mejora de contraste global. Solo funciona en imágenes de un solo canal (escala de grises).
+- [ ] **Nunca equalices canales de color de forma independiente** — convierte a YUV o LAB y ecualiza solo el canal de luminancia.
+- [ ] **CLAHE**: `cv2.createCLAHE(clipLimit, tileGridSize)`. Ecualización local que evita amplificar demasiado el ruido. La opción preferida para mejora de contraste en el mundo real.
+- [ ] **CLAHE sobre LAB**: La receta estándar — convierte a LAB, aplica CLAHE al canal L, convierte de vuelta. Funciona para cualquier imagen en color.
