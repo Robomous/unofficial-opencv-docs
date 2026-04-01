@@ -1,0 +1,206 @@
+---
+title: Umbralización
+description: Convierte imágenes en escala de grises a máscaras binarias usando umbralización simple, umbralización adaptativa y el método automático de Otsu.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+import { Image } from "astro:assets";
+import thresholdingComparison from "../../../../assets/images/preprocessing/thresholding-comparison.webp";
+
+La umbralización es el arte de tomar una decisión: ¿este píxel es "primer plano" o "fondo"? Convierte una imagen en escala de grises en una imagen **binaria** — negro puro y blanco puro, sin nada intermedio. Esto es esencial para tareas como la detección de contornos, OCR y segmentación de objetos, donde necesitas separar "las cosas" de "lo que no es".
+
+## Umbralización Simple
+
+`cv2.threshold()` aplica un único umbral global a cada píxel de la imagen:
+
+- Valor del píxel **por encima** del umbral → se establece en `maxval` (normalmente 255, blanco)
+- Valor del píxel **por debajo** del umbral → se establece en 0 (negro)
+
+```python
+import cv2
+
+img = cv2.imread("photo.jpg", cv2.IMREAD_GRAYSCALE)
+
+# Returns: (threshold_value_used, thresholded_image)
+ret, binary = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
+```
+
+<Aside type="caution">
+**¡La entrada debe estar en escala de grises!** `cv2.threshold()` espera una imagen de un solo canal. Si pasas una imagen BGR, producirá un error o resultados inesperados. Convierte siempre primero:
+```python
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+```
+</Aside>
+
+### Los Cinco Tipos de Umbral
+
+OpenCV ofrece cinco comportamientos de umbral diferentes:
+
+```text
+Input pixel value: V    Threshold: T    Max value: M
+
+THRESH_BINARY:       V > T  →  M,   else  →  0
+THRESH_BINARY_INV:   V > T  →  0,   else  →  M
+THRESH_TRUNC:        V > T  →  T,   else  →  V   (caps at threshold)
+THRESH_TOZERO:       V > T  →  V,   else  →  0   (keeps above, zeros below)
+THRESH_TOZERO_INV:   V > T  →  0,   else  →  V   (keeps below, zeros above)
+```
+
+En la práctica, `THRESH_BINARY` cubre el 90% de los casos de uso. Los demás son útiles para tareas especializadas como limitar el rango dinámico.
+
+```python
+# The most common variants
+_, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+_, binary_inv = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
+```
+
+## El Problema con la Umbralización Simple
+
+Un único umbral global funciona bien cuando la iluminación es uniforme. Pero el mundo real rara vez es tan amable. Considera una foto de un documento con una sombra encima: el lado izquierdo es más oscuro que el derecho:
+
+```text
+Pixel intensities across the image:
+
+Left (shadow):  [40, 45, 50, 55, 60]    ← Text here is ~50
+Right (bright): [180, 190, 200, 210, 220] ← Text here is ~190
+
+With threshold = 127:
+  Left side → ALL BLACK (text and background both below 127)
+  Right side → ALL WHITE (text and background both above 127)
+
+Result: You've lost all the text on the shadowed side!
+```
+
+Aquí es donde entra la umbralización adaptativa.
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={thresholdingComparison}
+    alt="Comparación de umbralización simple, adaptativa y Otsu en una imagen con iluminación irregular"
+    fit="contain"
+  />
+</div>
+
+## Umbralización Adaptativa
+
+`cv2.adaptiveThreshold()` resuelve el problema de la iluminación irregular calculando un **umbral diferente para cada pequeña región** de la imagen. En lugar de un número global, analiza el vecindario local alrededor de cada píxel.
+
+```python
+# adaptiveMethod: how to compute the local threshold
+# blockSize: size of the neighborhood (must be odd)
+# C: constant subtracted from the computed threshold
+
+adaptive = cv2.adaptiveThreshold(
+    gray,
+    maxValue=255,
+    adaptiveMethod=cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+    thresholdType=cv2.THRESH_BINARY,
+    blockSize=11,
+    C=2
+)
+```
+
+### Los Dos Métodos Adaptativos
+
+| Método | Cómo funciona | Cuándo usarlo |
+| :--- | :--- | :--- |
+| `ADAPTIVE_THRESH_MEAN_C` | Umbral = media del vecindario menos C | Simple y rápido |
+| `ADAPTIVE_THRESH_GAUSSIAN_C` | Umbral = media ponderada gaussiana menos C | Mejores resultados, ligeramente más lento |
+
+### Ajuste de los Parámetros
+
+- **blockSize**: Controla qué tan "local" es el umbral. Valores mayores = umbral más suave; valores menores = más sensible a cambios locales. Debe ser impar (3, 5, 7, 11…).
+- **C**: Una constante de ajuste fino. Aumentarla baja el umbral (más píxeles blancos). Disminuirla lo sube (más píxeles negros). Empieza con valores entre 2 y 5.
+
+<Aside type="tip">
+**Receta de ajuste rápido**: Comienza con `blockSize=11, C=2` para documentos. Si el texto se fragmenta, reduce C. Si hay demasiado ruido, aumenta blockSize.
+</Aside>
+
+## El Método de Otsu — Deja que la Computadora Decida
+
+¿Y si no quieres elegir un valor de umbral? El **método de Otsu** analiza el histograma de la imagen y encuentra automáticamente el umbral óptimo que minimiza la varianza combinada de los grupos de píxeles del primer plano y del fondo.
+
+La idea: si tu histograma tiene dos picos (una distribución "bimodal" — uno para el fondo y otro para el primer plano), Otsu encuentra el valle entre ellos.
+
+```python
+# Pass 0 as the threshold value — Otsu will override it
+# Add cv2.THRESH_OTSU as a flag
+ret, binary = cv2.threshold(gray, 0, 255,
+                            cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+# 'ret' now contains the threshold value that Otsu calculated
+print(f"Otsu selected threshold: {ret}")
+```
+
+<Aside type="note">
+El método de Otsu asume que el histograma es **bimodal** (dos picos claramente diferenciados). Si tu imagen tiene un histograma complejo con múltiples picos, Otsu puede no encontrar un buen umbral. En esos casos, la umbralización adaptativa suele ser la mejor opción.
+</Aside>
+
+### La Combinación Poderosa: Gaussian Blur + Otsu
+
+Otsu opera sobre el histograma, y las imágenes con ruido tienen histogramas desordenados. Al difuminar primero, suavizas el histograma y ayudas a Otsu a encontrar una separación más limpia:
+
+```python
+# 1. Blur to smooth the histogram
+blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+# 2. Otsu on the blurred image
+ret, binary = cv2.threshold(blurred, 0, 255,
+                            cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+```
+
+<Aside type="tip">
+**GaussianBlur + Otsu** es uno de los flujos de umbralización más confiables en la práctica. Si no sabes qué enfoque usar, empieza por aquí.
+</Aside>
+
+## Ejemplo Práctico: Umbralizar un Documento para OCR
+
+<Steps>
+1. Carga y convierte a escala de grises:
+
+   ```python
+   import cv2
+
+   img = cv2.imread("document_photo.jpg")
+   if img is None:
+       raise FileNotFoundError("Could not load image!")
+   gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+   ```
+
+2. Aplica un desenfoque gaussiano para reducir el ruido:
+
+   ```python
+   blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+   ```
+
+3. Prueba la umbralización adaptativa (ideal para documentos con iluminación irregular):
+
+   ```python
+   binary = cv2.adaptiveThreshold(
+       blurred, 255,
+       cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+       cv2.THRESH_BINARY,
+       blockSize=11, C=2
+   )
+   ```
+
+4. Muestra el resultado:
+
+   ```python
+   cv2.imshow("Original", gray)
+   cv2.imshow("Binary (Adaptive)", binary)
+   cv2.waitKey(0)
+   cv2.destroyAllWindows()
+   ```
+</Steps>
+
+## Lista de Verificación Resumen
+
+- [ ] **cv2.threshold()**: Umbral global. Rápido, pero falla con imágenes de iluminación irregular. La entrada debe estar en escala de grises.
+- [ ] **THRESH_BINARY**: El tipo más común — por encima del umbral = blanco, por debajo = negro.
+- [ ] **cv2.adaptiveThreshold()**: Calcula umbrales locales. Usa `GAUSSIAN_C` para mejores resultados. Ajusta `blockSize` y `C`.
+- [ ] **Método de Otsu**: Encuentra el umbral óptimo automáticamente. Agrega la bandera `cv2.THRESH_OTSU` y pasa 0 como valor de umbral.
+- [ ] **Blur + Otsu**: GaussianBlur antes de Otsu produce resultados más limpios — la combinación ideal cuando tienes dudas.
+- [ ] **Histogramas bimodales**: Otsu funciona mejor cuando la imagen tiene dos grupos de brillo claramente diferenciados. Verifica con un gráfico de histograma si no estás seguro.

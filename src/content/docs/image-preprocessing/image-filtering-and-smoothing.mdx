@@ -1,0 +1,206 @@
+---
+title: Image Filtering & Smoothing
+description: Understand kernels, convolution, and the four main blurring methods in OpenCV — averaging, Gaussian, median, and bilateral.
+sidebar:
+  order: 2
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Image } from "astro:assets";
+import blurComparison from "../../../assets/images/preprocessing/blur-comparison.webp";
+import kernelConvolution from "../../../assets/images/preprocessing/kernel-convolution.webp";
+
+Smoothing is like squinting at a noisy image — you lose some detail, but the big picture gets clearer. In computer vision, noise is the enemy. Random pixel variations from camera sensors, compression artifacts, or poor lighting can confuse edge detectors, thresholding, and object recognition. Smoothing (blurring) is the antidote.
+
+## What is a Kernel?
+
+Before diving into OpenCV's blur functions, you need to understand the **kernel** — the engine behind all filtering operations.
+
+A kernel (also called a "filter" or "mask") is a small matrix of numbers that slides across the image. At each position, it multiplies its values with the overlapping pixel values, sums them up, and writes the result to the output image. This process is called **convolution**.
+
+```text
+Kernel (3x3 Averaging):           Image Patch:
+  ┌────────────────┐           ┌────────────────┐
+  │ 1/9  1/9  1/9  │           │  10   20   30  │
+  │ 1/9  1/9  1/9  │     ×     │  40   50   60  │
+  │ 1/9  1/9  1/9  │           │  70   80   90  │
+  └────────────────┘           └────────────────┘
+
+Output pixel = (10+20+30+40+50+60+70+80+90) / 9 = 50
+```
+
+The kernel slides across every pixel position in the image, computing a new value at each stop. Different kernels produce different effects — averaging kernels blur, derivative kernels detect edges, and sharpening kernels enhance detail.
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={kernelConvolution}
+    alt="Visualization of a 3x3 averaging kernel being applied to a pixel grid"
+    fit="contain"
+  />
+</div>
+
+Mathematically, 2D convolution is:
+
+$$G(x,y) = \sum_{i} \sum_{j} K(i,j) \cdot I(x+i, y+j)$$
+
+Where $K$ is the kernel and $I$ is the image. You don't need to implement this yourself — OpenCV handles it.
+
+### Custom Kernels with cv2.filter2D()
+
+Before using the convenience functions, it's worth knowing you can apply _any_ kernel manually:
+
+```python
+import cv2
+import numpy as np
+
+img = cv2.imread("photo.jpg")
+
+# Create a 5x5 averaging kernel
+kernel = np.ones((5, 5), np.float32) / 25
+
+# Apply it
+smoothed = cv2.filter2D(img, -1, kernel)
+# -1 means "same depth as the input"
+```
+
+This is the foundation. All the blur functions below are just `filter2D` with specific kernel designs.
+
+## The Four Blurs
+
+OpenCV provides four blur methods, each optimized for different noise types. Here they are, from simplest to smartest:
+
+<Tabs>
+  <TabItem label="Averaging">
+    ### cv2.blur() — Simple Averaging
+
+    The most basic filter. It replaces each pixel with the **mean** of its neighbors. Fast, but it smears everything equally — edges, noise, and details alike.
+
+    ```python
+    # Kernel size (7, 7) means a 7x7 neighborhood
+    blurred = cv2.blur(img, (7, 7))
+    ```
+
+    **When to use**: Quick-and-dirty smoothing when you don't care about preserving edges. Rarely the best choice, but the fastest.
+  </TabItem>
+  <TabItem label="Gaussian">
+    ### cv2.GaussianBlur() — Weighted Averaging
+
+    Like averaging, but smarter. Pixels closer to the center of the kernel get **more weight** than those at the edges. This produces a more natural, less "boxy" blur.
+
+    ```python
+    # (7, 7) = kernel size, 0 = auto-calculate sigma from kernel size
+    blurred = cv2.GaussianBlur(img, (7, 7), 0)
+
+    # Or specify sigma manually for more control
+    blurred = cv2.GaussianBlur(img, (7, 7), sigmaX=1.5)
+    ```
+
+    The Gaussian function that defines the weights:
+
+    $$G(x,y) = \frac{1}{2\pi\sigma^2} e^{-\frac{x^2 + y^2}{2\sigma^2}}$$
+
+    **When to use**: The **default choice** for most preprocessing. Use before edge detection (Canny), thresholding, or any task where you want smooth noise reduction.
+
+    <Aside type="caution">
+    **Kernel size must be odd**: `(3,3)`, `(5,5)`, `(7,7)`, etc. An even number like `(4,4)` will throw an error. Why? Because the kernel needs a center pixel.
+    </Aside>
+  </TabItem>
+  <TabItem label="Median">
+    ### cv2.medianBlur() — The Noise Killer
+
+    Instead of averaging, this filter replaces each pixel with the **median** of its neighborhood. This seemingly small change makes it the king of removing **salt-and-pepper noise** (random black and white dots).
+
+    Why? Because a few extreme outlier pixels (the "salt" and "pepper") can shift an average dramatically, but they can't shift the median.
+
+    ```python
+    # ksize must be an odd integer (not a tuple!)
+    blurred = cv2.medianBlur(img, 7)
+    ```
+
+    **When to use**: When your image has salt-and-pepper noise (common with old cameras, sensor defects, or transmission errors). Also good for reducing fine texture while keeping edges sharper than averaging.
+
+    <Aside type="note">
+    Unlike the other blurs, `medianBlur` takes a **single integer** for the kernel size, not a tuple. `7` instead of `(7, 7)`.
+    </Aside>
+  </TabItem>
+  <TabItem label="Bilateral">
+    ### cv2.bilateralFilter() — The Smart Blur
+
+    The premium option. Bilateral filtering smooths flat areas while **preserving edges**. It does this by considering not just the _distance_ between pixels (like Gaussian) but also the _difference in intensity_. Pixels with similar values get blurred together; pixels across an edge boundary don't.
+
+    ```python
+    # d=9: neighborhood diameter
+    # sigmaColor=75: how different colors can be and still blend
+    # sigmaSpace=75: spatial reach (like Gaussian sigma)
+    blurred = cv2.bilateralFilter(img, d=9, sigmaColor=75, sigmaSpace=75)
+    ```
+
+    **When to use**: When edges matter — before edge detection, face processing, or artistic effects. The trade-off is speed: bilateral is significantly slower than the other three.
+
+    <Aside type="tip">
+    **A common preprocessing combo**: Use bilateral filtering before Canny edge detection. It removes noise without blurring the edges you want to detect.
+    </Aside>
+  </TabItem>
+</Tabs>
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={blurComparison}
+    alt="Side-by-side comparison of averaging, Gaussian, median, and bilateral blur applied to a noisy image"
+    fit="contain"
+  />
+</div>
+
+## How to Choose?
+
+| Noise Type | Recommended Filter | Why |
+| :--- | :--- | :--- |
+| General noise (sensor, compression) | **Gaussian** | Good all-around performance, natural-looking result |
+| Salt-and-pepper (random black/white dots) | **Median** | Ignores outliers, preserves edges better than averaging |
+| Noise but edges must be preserved | **Bilateral** | Smart blending that respects edge boundaries |
+| Speed is all that matters | **Averaging** | Fastest, but lowest quality |
+
+<Aside type="tip">
+**Rule of thumb**: Start with Gaussian. If you see salt-and-pepper noise, switch to Median. If edges are getting destroyed and you have processing time, upgrade to Bilateral.
+</Aside>
+
+## Practical Example: Denoising a Photo
+
+```python
+import cv2
+import numpy as np
+
+# 1. Load the image
+img = cv2.imread("noisy_photo.jpg")
+if img is None:
+    raise FileNotFoundError("Could not load image!")
+
+# 2. Try different blurs and compare
+avg_blur = cv2.blur(img, (5, 5))
+gauss_blur = cv2.GaussianBlur(img, (5, 5), 0)
+median_blur = cv2.medianBlur(img, 5)
+bilateral_blur = cv2.bilateralFilter(img, 9, 75, 75)
+
+# 3. Display all results
+cv2.imshow("Original", img)
+cv2.imshow("Averaging", avg_blur)
+cv2.imshow("Gaussian", gauss_blur)
+cv2.imshow("Median", median_blur)
+cv2.imshow("Bilateral", bilateral_blur)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+<Aside type="caution">
+**Don't over-blur!** A larger kernel removes more noise but also destroys useful detail. Always use the **smallest kernel** that gives acceptable results. If a 3x3 works, don't use 7x7 "just to be safe."
+</Aside>
+
+## Summary Checklist
+
+- [ ] **Kernels**: Small matrices that slide over the image and compute new pixel values via convolution.
+- [ ] **cv2.filter2D()**: Apply any custom kernel to an image.
+- [ ] **cv2.blur()**: Simple averaging. Fast but smears everything.
+- [ ] **cv2.GaussianBlur()**: Weighted average — the default choice for most tasks. Kernel size must be odd.
+- [ ] **cv2.medianBlur()**: Best for salt-and-pepper noise. Takes a single integer, not a tuple.
+- [ ] **cv2.bilateralFilter()**: Smooths flat areas while preserving edges. Slower but smarter.
+- [ ] **Kernel size matters**: Bigger kernel = more blur. Always use the smallest that gets the job done.

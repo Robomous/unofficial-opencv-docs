@@ -1,0 +1,209 @@
+---
+title: Conversiones de Espacio de Color
+description: Usa cv2.cvtColor() y cv2.inRange() para filtrado de color práctico, enmascaramiento y pipelines de preprocesamiento en OpenCV.
+sidebar:
+  order: 1
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+import { Image } from "astro:assets";
+import colorSpacesComparison from "../../../../assets/images/preprocessing/color-spaces-comparison.webp";
+import inrangePipeline from "../../../../assets/images/preprocessing/inrange-mask-pipeline.webp";
+
+En la [sección de Fundamentos](/fundamentals/image-matrices-and-color-spaces/), aprendiste _qué_ son los espacios de color — BGR, HSV, Escala de Grises y YUV. Ahora es momento de usarlos como **herramientas de preprocesamiento**.
+
+La conversión de espacio de color suele ser el primer paso en cualquier pipeline de visión por computadora. ¿Por qué? Porque elegir el espacio de color correcto hace que las tareas posteriores (como detectar objetos, segmentar regiones o mejorar el contraste) sean dramáticamente más sencillas.
+
+## El Kit de Herramientas cv2.cvtColor()
+
+Ya has visto `cv2.cvtColor()` para conversiones básicas. Aquí está la referencia completa para las conversiones que más usarás:
+
+| Código de Conversión | De → A | Cuándo Usarlo |
+| :--- | :--- | :--- |
+| `cv2.COLOR_BGR2GRAY` | BGR → Escala de Grises | Detección de bordes, umbralización, la mayoría del preprocesamiento |
+| `cv2.COLOR_BGR2HSV` | BGR → HSV | Detección y filtrado de objetos por color |
+| `cv2.COLOR_BGR2LAB` | BGR → LAB | Mejora de contraste (CLAHE), comparaciones perceptuales |
+| `cv2.COLOR_BGR2RGB` | BGR → RGB | Mostrar con Matplotlib o guardar para web |
+| `cv2.COLOR_GRAY2BGR` | Escala de Grises → BGR | Añadir anotaciones de color a un resultado en escala de grises |
+
+```python
+import cv2
+
+img = cv2.imread("photo.jpg")
+if img is None:
+    raise FileNotFoundError("Could not load image. Check your path!")
+
+# Convert to different color spaces
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+```
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={colorSpacesComparison}
+    alt="La misma imagen mostrada en los espacios de color BGR (como RGB), Escala de Grises, HSV y LAB"
+    fit="contain"
+  />
+</div>
+
+## El Espacio de Color LAB
+
+Ya conoces BGR, HSV y Escala de Grises desde los Fundamentos. El que no tuvo su momento de protagonismo es **LAB** (también escrito como L\*a\*b\*), y en secreto es uno de los espacios de color más útiles para el preprocesamiento.
+
+LAB separa una imagen en tres canales:
+
+- **L (Luminosidad)**: Brillo puro, de 0 (negro) a 255 (blanco). Piénsalo como una "escala de grises mejorada."
+- **a**: Rango de color de Verde (valores bajos) a Rojo/Magenta (valores altos).
+- **b**: Rango de color de Azul (valores bajos) a Amarillo (valores altos).
+
+¿Por qué es útil? LAB es **perceptualmente uniforme** — un cambio de 10 unidades en LAB _se ve_ como la misma cantidad de cambio para el ojo humano, sin importar dónde estés en la escala. BGR y RGB no tienen esta propiedad (un salto de 100→110 en Rojo se ve diferente que 200→210).
+
+Esto hace que LAB sea ideal para:
+
+- **Mejora de contraste**: Aplica CLAHE solo al canal L (lo cubriremos en la página de [Histogramas](/image-preprocessing/histograms/)).
+- **Medición de diferencia de color**: Comparar qué tan "similares" se ven dos colores para un humano.
+- **Operaciones invariantes a la iluminación**: El canal L captura toda la iluminación; a y b capturan color puro.
+
+```python
+# Convert to LAB
+lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+
+# Split into channels
+l_channel, a_channel, b_channel = cv2.split(lab)
+
+# The L channel is a high-quality grayscale representation
+# The a and b channels contain pure color information
+```
+
+## Filtrado de Color con cv2.inRange()
+
+Aquí es donde los espacios de color se vuelven verdaderamente poderosos como herramienta de preprocesamiento. `cv2.inRange()` te permite crear una **máscara binaria** que aísla los píxeles dentro de un rango de color específico — básicamente diciéndole "muéstrame solo los píxeles azules" o "encuentra todo lo que es verde."
+
+El flujo de trabajo es siempre el mismo:
+
+<Steps>
+1. **Convertir a HSV** — porque HSV separa el color (Hue/Matiz) de la iluminación (Value/Valor), haciendo tu filtro robusto ante sombras y cambios de brillo.
+
+   ```python
+   import cv2
+   import numpy as np
+
+   img = cv2.imread("photo.jpg")
+   hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+   ```
+
+2. **Define tu rango de color** — elige los límites inferior y superior para Matiz, Saturación y Valor.
+
+   ```python
+   # Example: Detect green objects
+   # Hue: 35-85 (green range in OpenCV's 0-179 scale)
+   # Saturation: 50-255 (ignore very faded pixels)
+   # Value: 50-255 (ignore very dark pixels)
+   lower_green = np.array([35, 50, 50])
+   upper_green = np.array([85, 255, 255])
+   ```
+
+3. **Crea la máscara** — `cv2.inRange()` devuelve una imagen binaria donde los píxeles blancos están "dentro del rango" y los píxeles negros están "fuera del rango."
+
+   ```python
+   mask = cv2.inRange(hsv, lower_green, upper_green)
+   # mask is a single-channel image: 255 where green, 0 elsewhere
+   ```
+
+4. **Aplica la máscara** — usa `cv2.bitwise_and()` para conservar solo los píxeles que pasaron el filtro.
+
+   ```python
+   result = cv2.bitwise_and(img, img, mask=mask)
+   # result shows only the green parts of the original image
+   ```
+</Steps>
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={inrangePipeline}
+    alt="Pipeline de filtrado de color: imagen original, máscara binaria de inRange y el resultado enmascarado"
+    fit="contain"
+  />
+</div>
+
+### Rangos HSV Comunes
+
+Aquí hay una hoja de referencia rápida para detectar colores comunes en la escala HSV de OpenCV (Hue/Matiz: 0-179, Saturación: 0-255, Valor: 0-255):
+
+| Color | Hue Bajo | Hue Alto | Notas |
+| :--- | :---: | :---: | :--- |
+| Rojo | 0-10 **y** 170-179 | — | ¡El rojo da la vuelta! Se necesitan dos máscaras. |
+| Naranja | 10 | 25 | |
+| Amarillo | 25 | 35 | |
+| Verde | 35 | 85 | |
+| Azul | 85 | 130 | |
+| Morado | 130 | 170 | |
+
+<Aside type="caution">
+**La Trampa del Rojo que Da la Vuelta**: En el HSV de OpenCV, el Hue va de 0 a 179. El rojo se ubica en _ambos extremos_ de este rango (alrededor de 0-10 y 170-179). Para detectar rojo, necesitas **dos máscaras separadas** combinadas con `cv2.bitwise_or()`:
+
+```python
+# Red detection requires two ranges
+lower_red1 = np.array([0, 50, 50])
+upper_red1 = np.array([10, 255, 255])
+lower_red2 = np.array([170, 50, 50])
+upper_red2 = np.array([10, 255, 255])
+
+mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+mask = cv2.bitwise_or(mask1, mask2)
+```
+</Aside>
+
+<Aside type="tip">
+**Encontrar el rango HSV correcto**: ¡No adivines! Carga tu imagen objetivo, conviértela a HSV y usa `print(hsv[y, x])` para leer los valores HSV de los píxeles que quieres detectar. Luego construye tu rango alrededor de esos valores con algo de tolerancia (±10 para Hue es un buen punto de partida).
+</Aside>
+
+## Ejemplo Práctico: Aislar un Objeto de Color
+
+Aquí hay un pipeline completo que detecta y aísla un objeto azul de una escena:
+
+```python
+import cv2
+import numpy as np
+
+# 1. Load the image
+img = cv2.imread("scene.jpg")
+if img is None:
+    raise FileNotFoundError("Could not load image!")
+
+# 2. Convert to HSV
+hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+# 3. Define blue range
+lower_blue = np.array([85, 50, 50])
+upper_blue = np.array([130, 255, 255])
+
+# 4. Create binary mask
+mask = cv2.inRange(hsv, lower_blue, upper_blue)
+
+# 5. Optional: Clean up the mask with morphology
+# (We'll cover this in detail in the Morphological Operations page)
+kernel = np.ones((5, 5), np.uint8)
+mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+# 6. Apply the mask to the original image
+result = cv2.bitwise_and(img, img, mask=mask)
+
+# 7. Display
+cv2.imshow("Original", img)
+cv2.imshow("Mask", mask)
+cv2.imshow("Blue Objects Only", result)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+## Lista de Verificación Resumen
+
+- [ ] **cv2.cvtColor()**: Tu puerta de entrada a todas las conversiones de espacio de color. Conoce los flags principales (BGR2GRAY, BGR2HSV, BGR2LAB, BGR2RGB).
+- [ ] **Espacio de color LAB**: Usa el canal L para mejorar el contraste y para comparaciones de color perceptualmente uniformes.
+- [ ] **cv2.inRange()**: Crea máscaras binarias a partir de rangos HSV. Siempre convierte a HSV primero para un filtrado de color robusto.
+- [ ] **El rojo da la vuelta**: El matiz rojo abarca ambos extremos del rango 0-179 — combina dos máscaras con `cv2.bitwise_or()`.
+- [ ] **Aplicación de máscara**: Usa `cv2.bitwise_and(img, img, mask=mask)` para aplicar una máscara binaria a una imagen.

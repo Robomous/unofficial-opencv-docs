@@ -1,0 +1,285 @@
+---
+title: Transformaciones Geométricas
+description: Redimensiona, rota, voltea y deforma imágenes con transformaciones afines y de perspectiva en OpenCV.
+sidebar:
+  order: 5
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+import { Image } from "astro:assets";
+import resizeInterpolation from "../../../../assets/images/preprocessing/resize-interpolation.webp";
+import perspectiveTransform from "../../../../assets/images/preprocessing/perspective-transform.webp";
+
+A veces el contenido de la imagen está bien, pero su geometría es incorrecta — es demasiado grande, está rotada de lado o fue tomada desde un ángulo. Las transformaciones geométricas cambian **dónde** están los píxeles, no **qué** son. Piénsalo como mover físicamente, estirar o rotar el lienzo de la imagen.
+
+## Redimensionado
+
+`cv2.resize()` es probablemente la función geométrica que más vas a usar. Puedes especificar el tamaño de salida explícitamente o usar factores de escala.
+
+```python
+import cv2
+
+img = cv2.imread("photo.jpg")
+h, w = img.shape[:2]
+
+# Method 1: Explicit dimensions (width, height)
+resized = cv2.resize(img, (640, 480))
+
+# Method 2: Scale factors
+half = cv2.resize(img, None, fx=0.5, fy=0.5)
+double = cv2.resize(img, None, fx=2.0, fy=2.0)
+```
+
+<Aside type="caution">
+**La Trampa del Ancho y Alto**: `cv2.resize()` recibe `(width, height)` como parámetro de tamaño. Esto es lo **opuesto** al `shape` de NumPy, que devuelve `(height, width, channels)`. Confundir estos dos es uno de los bugs más comunes en OpenCV.
+
+```python
+# WRONG — this swaps width and height!
+resized = cv2.resize(img, (img.shape[0], img.shape[1]))
+
+# CORRECT
+resized = cv2.resize(img, (img.shape[1], img.shape[0]))
+# Or better yet:
+h, w = img.shape[:2]
+resized = cv2.resize(img, (w, h))
+```
+</Aside>
+
+### Métodos de Interpolación
+
+Al redimensionar, OpenCV necesita "inventar" valores de píxeles que no existen en la imagen original. El método que usa se llama **interpolación**, y la elección importa:
+
+| Método | Flag | Ideal Para | Calidad |
+| :--- | :--- | :--- | :--- |
+| Vecino más cercano | `cv2.INTER_NEAREST` | Pixel art, máscaras | Más rápido, pixelado |
+| Bilineal | `cv2.INTER_LINEAR` | Escalado general hacia arriba (por defecto) | Buena |
+| Bicúbica | `cv2.INTER_CUBIC` | Escalado hacia arriba de alta calidad | Mejor, más lento |
+| Basado en área | `cv2.INTER_AREA` | **Reducción de tamaño** | Mejor para encoger |
+
+```python
+# Upscaling: use INTER_CUBIC for quality
+upscaled = cv2.resize(img, None, fx=4.0, fy=4.0,
+                       interpolation=cv2.INTER_CUBIC)
+
+# Downscaling: use INTER_AREA to avoid aliasing
+thumbnail = cv2.resize(img, (160, 120),
+                        interpolation=cv2.INTER_AREA)
+```
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={resizeInterpolation}
+    alt="Comparación de interpolación por vecino más cercano, bilineal y bicúbica al ampliar un recorte pequeño de imagen"
+    fit="contain"
+  />
+</div>
+
+<Aside type="tip">
+**Regla general**: Usa `INTER_AREA` al reducir y `INTER_LINEAR` o `INTER_CUBIC` al ampliar. Usar el método incorrecto al reducir puede producir artefactos de aliasing (bordes dentados).
+</Aside>
+
+## Volteo
+
+La transformación geométrica más simple. `cv2.flip()` refleja la imagen a lo largo de un eje.
+
+```python
+# flipCode = 1: Horizontal flip (mirror)
+flipped_h = cv2.flip(img, 1)
+
+# flipCode = 0: Vertical flip (upside down)
+flipped_v = cv2.flip(img, 0)
+
+# flipCode = -1: Both axes (180° rotation)
+flipped_both = cv2.flip(img, -1)
+```
+
+El volteo se usa comúnmente para **aumentación de datos** en aprendizaje automático — duplicas tu conjunto de entrenamiento agregando copias reflejadas.
+
+## Rotación
+
+Para incrementos de 90°, usa `cv2.rotate()`:
+
+```python
+# 90° clockwise
+rotated = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+
+# 90° counter-clockwise
+rotated = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+# 180°
+rotated = cv2.rotate(img, cv2.ROTATE_180)
+```
+
+Para **ángulos arbitrarios**, necesitas una matriz de rotación:
+
+```python
+h, w = img.shape[:2]
+center = (w // 2, h // 2)
+
+# 1. Create the rotation matrix
+# Parameters: center, angle (degrees, counter-clockwise), scale
+M = cv2.getRotationMatrix2D(center, angle=45, scale=1.0)
+
+# 2. Apply the rotation
+rotated = cv2.warpAffine(img, M, (w, h))
+```
+
+<Aside type="caution">
+**El Problema del Recorte**: Cuando rotas una imagen en un ángulo arbitrario, las esquinas pueden quedar cortadas porque el lienzo de salida tiene el mismo tamaño que la entrada. Para evitarlo, calcula el nuevo cuadro delimitador y amplía el lienzo:
+
+```python
+h, w = img.shape[:2]
+center = (w // 2, h // 2)
+
+M = cv2.getRotationMatrix2D(center, angle=30, scale=1.0)
+
+# Calculate new bounding box dimensions
+cos = np.abs(M[0, 0])
+sin = np.abs(M[0, 1])
+new_w = int(h * sin + w * cos)
+new_h = int(h * cos + w * sin)
+
+# Adjust the rotation matrix to account for the new center
+M[0, 2] += (new_w - w) / 2
+M[1, 2] += (new_h - h) / 2
+
+rotated = cv2.warpAffine(img, M, (new_w, new_h))
+```
+</Aside>
+
+## Traslación (Desplazamiento)
+
+La traslación mueve la imagen sin rotarla ni escalarla. Construyes una matriz de transformación 2×3 manualmente:
+
+$$M = \begin{bmatrix} 1 & 0 & t_x \\ 0 & 1 & t_y \end{bmatrix}$$
+
+Donde $t_x$ es el desplazamiento horizontal y $t_y$ es el desplazamiento vertical (positivo = derecha/abajo).
+
+```python
+import numpy as np
+
+# Shift 100 pixels right, 50 pixels down
+tx, ty = 100, 50
+M = np.float32([[1, 0, tx],
+                [0, 1, ty]])
+
+shifted = cv2.warpAffine(img, M, (w, h))
+```
+
+## Transformaciones Afines
+
+La traslación, rotación, escalado y deformación son todos casos especiales de las **transformaciones afines**. Una transformación afín preserva las líneas paralelas — los rectángulos se convierten en paralelogramos, pero las líneas rectas siguen siendo rectas.
+
+Para definir una transformación afín general, necesitas **3 pares de puntos correspondientes** (origen → destino):
+
+```python
+import numpy as np
+
+# Define 3 source points and where they should map to
+src_pts = np.float32([[50, 50], [200, 50], [50, 200]])
+dst_pts = np.float32([[10, 100], [200, 50], [100, 250]])
+
+# Compute the 2x3 affine matrix
+M = cv2.getAffineTransform(src_pts, dst_pts)
+
+# Apply it
+warped = cv2.warpAffine(img, M, (w, h))
+```
+
+## Transformación de Perspectiva
+
+La transformación de perspectiva (proyectiva) es la versión avanzada de la transformación afín. Mientras que la afín preserva las líneas paralelas, la transformación de perspectiva puede hacer que las líneas paralelas converjan — exactamente lo que ocurre cuando fotografías un documento rectangular desde un ángulo.
+
+Necesitas **4 pares de puntos correspondientes** para definir una transformación de perspectiva:
+
+<Steps>
+1. **Identifica 4 puntos de origen** en la imagen de entrada (por ejemplo, las esquinas de un documento inclinado).
+
+   ```python
+   import numpy as np
+
+   # The 4 corners of the document in the photo
+   # (found manually or via contour detection)
+   src_pts = np.float32([
+       [56, 65],    # Top-left
+       [368, 52],   # Top-right
+       [28, 387],   # Bottom-left
+       [389, 390]   # Bottom-right
+   ])
+   ```
+
+2. **Define 4 puntos de destino** — hacia dónde deben ir esas esquinas (generalmente un rectángulo limpio).
+
+   ```python
+   # Map to a clean 400x400 rectangle
+   dst_pts = np.float32([
+       [0, 0],       # Top-left
+       [400, 0],     # Top-right
+       [0, 400],     # Bottom-left
+       [400, 400]    # Bottom-right
+   ])
+   ```
+
+3. **Calcula la matriz de perspectiva 3×3 y aplica la deformación.**
+
+   ```python
+   M = cv2.getPerspectiveTransform(src_pts, dst_pts)
+   result = cv2.warpPerspective(img, M, (400, 400))
+   ```
+</Steps>
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={perspectiveTransform}
+    alt="Transformación de perspectiva: una imagen inclinada corregida a una vista plana y rectangular"
+    fit="contain"
+  />
+</div>
+
+<Aside type="tip">
+**Así es como funcionan los escáneres de documentos.** Apps como CamScanner encuentran las 4 esquinas de un documento usando detección de contornos y luego aplican una transformación de perspectiva para producir un escaneo plano y rectangular. Ahora ya conoces el algoritmo central.
+</Aside>
+
+## Ejemplo Práctico: Escáner de Documentos Simple
+
+```python
+import cv2
+import numpy as np
+
+# 1. Load the photo of a document taken at an angle
+img = cv2.imread("document_photo.jpg")
+if img is None:
+    raise FileNotFoundError("Could not load image!")
+
+# 2. Define source points (the document corners in the photo)
+# In practice, you'd detect these with contour detection
+src = np.float32([[100, 50], [450, 30], [80, 520], [470, 500]])
+
+# 3. Define destination: a clean A4-ratio rectangle
+dst = np.float32([[0, 0], [400, 0], [0, 560], [400, 560]])
+
+# 4. Compute the perspective transform matrix
+M = cv2.getPerspectiveTransform(src, dst)
+
+# 5. Warp the image
+scanned = cv2.warpPerspective(img, M, (400, 560))
+
+# 6. Optional: Convert to grayscale and threshold for a "scanned" look
+gray = cv2.cvtColor(scanned, cv2.COLOR_BGR2GRAY)
+_, binary = cv2.threshold(gray, 0, 255,
+                          cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+cv2.imshow("Original", img)
+cv2.imshow("Scanned", binary)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+## Lista de Verificación Resumen
+
+- [ ] **cv2.resize()**: Recibe `(width, height)`, NO `(height, width)`. Usa `INTER_AREA` para reducir, `INTER_CUBIC` para ampliar.
+- [ ] **cv2.flip()**: flipCode 1 = horizontal, 0 = vertical, -1 = ambos ejes.
+- [ ] **Rotación**: Usa `cv2.rotate()` para pasos de 90°. Para ángulos arbitrarios, usa `cv2.getRotationMatrix2D()` + `cv2.warpAffine()`.
+- [ ] **Traslación**: Construye una matriz 2×3 con `[1, 0, tx]` y `[0, 1, ty]`.
+- [ ] **Transformación afín**: 3 pares de puntos → `cv2.getAffineTransform()` → `cv2.warpAffine()`. Preserva líneas paralelas.
+- [ ] **Transformación de perspectiva**: 4 pares de puntos → `cv2.getPerspectiveTransform()` → `cv2.warpPerspective()`. Puede "aplanar" documentos inclinados.

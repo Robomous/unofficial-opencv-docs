@@ -1,0 +1,206 @@
+---
+title: Thresholding
+description: Convert grayscale images to binary masks using simple thresholding, adaptive thresholding, and Otsu's automatic method.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+import { Image } from "astro:assets";
+import thresholdingComparison from "../../../assets/images/preprocessing/thresholding-comparison.webp";
+
+Thresholding is the art of making a decision: is this pixel "foreground" or "background"? It converts a grayscale image into a **binary** image — pure black and pure white, nothing in between. This is essential for tasks like contour detection, OCR, and object segmentation where you need to separate "stuff" from "not stuff."
+
+## Simple Thresholding
+
+`cv2.threshold()` applies a single global threshold to every pixel in the image:
+
+- Pixel value **above** the threshold → set to `maxval` (usually 255, white)
+- Pixel value **below** the threshold → set to 0 (black)
+
+```python
+import cv2
+
+img = cv2.imread("photo.jpg", cv2.IMREAD_GRAYSCALE)
+
+# Returns: (threshold_value_used, thresholded_image)
+ret, binary = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
+```
+
+<Aside type="caution">
+**Input must be grayscale!** `cv2.threshold()` expects a single-channel image. If you pass a BGR image, it will either error or produce unexpected results. Always convert first:
+```python
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+```
+</Aside>
+
+### The Five Threshold Types
+
+OpenCV provides five different threshold behaviors:
+
+```text
+Input pixel value: V    Threshold: T    Max value: M
+
+THRESH_BINARY:       V > T  →  M,   else  →  0
+THRESH_BINARY_INV:   V > T  →  0,   else  →  M
+THRESH_TRUNC:        V > T  →  T,   else  →  V   (caps at threshold)
+THRESH_TOZERO:       V > T  →  V,   else  →  0   (keeps above, zeros below)
+THRESH_TOZERO_INV:   V > T  →  0,   else  →  V   (keeps below, zeros above)
+```
+
+In practice, `THRESH_BINARY` handles 90% of use cases. The others are useful for specialized tasks like clamping dynamic range.
+
+```python
+# The most common variants
+_, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+_, binary_inv = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
+```
+
+## The Problem with Simple Thresholding
+
+A single global threshold works great when lighting is uniform. But the real world is rarely that kind. Consider a photo of a document with a shadow across it — the left side is darker than the right:
+
+```text
+Pixel intensities across the image:
+
+Left (shadow):  [40, 45, 50, 55, 60]    ← Text here is ~50
+Right (bright): [180, 190, 200, 210, 220] ← Text here is ~190
+
+With threshold = 127:
+  Left side → ALL BLACK (text and background both below 127)
+  Right side → ALL WHITE (text and background both above 127)
+
+Result: You've lost all the text on the shadowed side!
+```
+
+This is where adaptive thresholding comes in.
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={thresholdingComparison}
+    alt="Comparison of simple, adaptive, and Otsu thresholding on an unevenly lit image"
+    fit="contain"
+  />
+</div>
+
+## Adaptive Thresholding
+
+`cv2.adaptiveThreshold()` solves the uneven lighting problem by computing a **different threshold for each small region** of the image. Instead of one global number, it looks at the local neighborhood around each pixel.
+
+```python
+# adaptiveMethod: how to compute the local threshold
+# blockSize: size of the neighborhood (must be odd)
+# C: constant subtracted from the computed threshold
+
+adaptive = cv2.adaptiveThreshold(
+    gray,
+    maxValue=255,
+    adaptiveMethod=cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+    thresholdType=cv2.THRESH_BINARY,
+    blockSize=11,
+    C=2
+)
+```
+
+### The Two Adaptive Methods
+
+| Method | How It Works | When to Use |
+| :--- | :--- | :--- |
+| `ADAPTIVE_THRESH_MEAN_C` | Threshold = mean of the neighborhood minus C | Simple, fast |
+| `ADAPTIVE_THRESH_GAUSSIAN_C` | Threshold = Gaussian-weighted mean minus C | Better results, slightly slower |
+
+### Tuning the Parameters
+
+- **blockSize**: Controls how "local" the threshold is. Larger values = smoother threshold, smaller values = more responsive to local changes. Must be odd (3, 5, 7, 11...).
+- **C**: A fine-tuning constant. Increasing C pushes the threshold lower (more white pixels). Decreasing makes it higher (more black pixels). Start with 2-5.
+
+<Aside type="tip">
+**Quick tuning recipe**: Start with `blockSize=11, C=2` for documents. If the text is breaking apart, decrease C. If there's too much noise, increase blockSize.
+</Aside>
+
+## Otsu's Method — Let the Computer Decide
+
+What if you don't want to pick a threshold value at all? **Otsu's method** analyzes the image histogram and automatically finds the optimal threshold that minimizes the combined spread (variance) of the foreground and background pixel groups.
+
+The idea: if your histogram has two peaks (a "bimodal" distribution — one for the background, one for the foreground), Otsu finds the valley between them.
+
+```python
+# Pass 0 as the threshold value — Otsu will override it
+# Add cv2.THRESH_OTSU as a flag
+ret, binary = cv2.threshold(gray, 0, 255,
+                            cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+# 'ret' now contains the threshold value that Otsu calculated
+print(f"Otsu selected threshold: {ret}")
+```
+
+<Aside type="note">
+Otsu's method assumes the histogram is **bimodal** (two distinct peaks). If your image has a complex, multi-peaked histogram, Otsu may not find a good threshold. In those cases, adaptive thresholding is usually the better choice.
+</Aside>
+
+### The Power Combo: Gaussian Blur + Otsu
+
+Otsu works on the histogram, and noisy images have messy histograms. By blurring first, you smooth the histogram and help Otsu find cleaner separation:
+
+```python
+# 1. Blur to smooth the histogram
+blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+# 2. Otsu on the blurred image
+ret, binary = cv2.threshold(blurred, 0, 255,
+                            cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+```
+
+<Aside type="tip">
+**GaussianBlur + Otsu** is one of the most reliable thresholding pipelines in practice. If you're unsure which approach to use, start here.
+</Aside>
+
+## Practical Example: Threshold a Document for OCR
+
+<Steps>
+1. Load and convert to grayscale:
+
+   ```python
+   import cv2
+
+   img = cv2.imread("document_photo.jpg")
+   if img is None:
+       raise FileNotFoundError("Could not load image!")
+   gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+   ```
+
+2. Apply Gaussian blur to reduce noise:
+
+   ```python
+   blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+   ```
+
+3. Try adaptive thresholding (best for documents with uneven lighting):
+
+   ```python
+   binary = cv2.adaptiveThreshold(
+       blurred, 255,
+       cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+       cv2.THRESH_BINARY,
+       blockSize=11, C=2
+   )
+   ```
+
+4. Display the result:
+
+   ```python
+   cv2.imshow("Original", gray)
+   cv2.imshow("Binary (Adaptive)", binary)
+   cv2.waitKey(0)
+   cv2.destroyAllWindows()
+   ```
+</Steps>
+
+## Summary Checklist
+
+- [ ] **cv2.threshold()**: Global threshold. Fast but fails on unevenly lit images. Input must be grayscale.
+- [ ] **THRESH_BINARY**: The most common type — above threshold = white, below = black.
+- [ ] **cv2.adaptiveThreshold()**: Computes local thresholds. Use `GAUSSIAN_C` for better results. Tune `blockSize` and `C`.
+- [ ] **Otsu's method**: Automatically finds the optimal threshold. Add `cv2.THRESH_OTSU` flag and pass 0 as the threshold value.
+- [ ] **Blur + Otsu**: GaussianBlur before Otsu produces cleaner results — the go-to combo when in doubt.
+- [ ] **Bimodal histograms**: Otsu works best when the image has two clear brightness groups. Check with a histogram plot if unsure.

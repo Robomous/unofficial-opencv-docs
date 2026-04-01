@@ -1,0 +1,206 @@
+---
+title: Filtrado y Suavizado de Imágenes
+description: Comprende los kernels, la convolución y los cuatro métodos principales de desenfoque en OpenCV — promedio, Gaussiano, mediana y bilateral.
+sidebar:
+  order: 2
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Image } from "astro:assets";
+import blurComparison from "../../../../assets/images/preprocessing/blur-comparison.webp";
+import kernelConvolution from "../../../../assets/images/preprocessing/kernel-convolution.webp";
+
+Suavizar es como entrecerrar los ojos ante una imagen con ruido — pierdes algo de detalle, pero el panorama general se vuelve más claro. En visión por computadora, el ruido es el enemigo. Las variaciones aleatorias de píxeles provenientes de los sensores de la cámara, artefactos de compresión o iluminación deficiente pueden confundir a los detectores de bordes, la umbralización y el reconocimiento de objetos. El suavizado (desenfoque) es el antídoto.
+
+## ¿Qué es un Kernel?
+
+Antes de adentrarse en las funciones de desenfoque de OpenCV, necesitas entender el **kernel** — el motor detrás de todas las operaciones de filtrado.
+
+Un kernel (también llamado "filtro" o "máscara") es una pequeña matriz de números que se desliza por la imagen. En cada posición, multiplica sus valores con los valores de los píxeles superpuestos, los suma y escribe el resultado en la imagen de salida. Este proceso se llama **convolución**.
+
+```text
+Kernel (3x3 Averaging):           Image Patch:
+  ┌────────────────┐           ┌────────────────┐
+  │ 1/9  1/9  1/9  │           │  10   20   30  │
+  │ 1/9  1/9  1/9  │     ×     │  40   50   60  │
+  │ 1/9  1/9  1/9  │           │  70   80   90  │
+  └────────────────┘           └────────────────┘
+
+Output pixel = (10+20+30+40+50+60+70+80+90) / 9 = 50
+```
+
+El kernel se desliza por cada posición de píxel en la imagen, calculando un nuevo valor en cada parada. Distintos kernels producen distintos efectos — los kernels de promedio desenfocan, los kernels de derivada detectan bordes y los kernels de nitidez realzan el detalle.
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={kernelConvolution}
+    alt="Visualización de un kernel de promedio 3x3 aplicado a una cuadrícula de píxeles"
+    fit="contain"
+  />
+</div>
+
+Matemáticamente, la convolución 2D es:
+
+$$G(x,y) = \sum_{i} \sum_{j} K(i,j) \cdot I(x+i, y+j)$$
+
+Donde $K$ es el kernel e $I$ es la imagen. No necesitas implementar esto tú mismo — OpenCV lo maneja.
+
+### Kernels Personalizados con cv2.filter2D()
+
+Antes de usar las funciones de conveniencia, vale la pena saber que puedes aplicar _cualquier_ kernel de forma manual:
+
+```python
+import cv2
+import numpy as np
+
+img = cv2.imread("photo.jpg")
+
+# Create a 5x5 averaging kernel
+kernel = np.ones((5, 5), np.float32) / 25
+
+# Apply it
+smoothed = cv2.filter2D(img, -1, kernel)
+# -1 means "same depth as the input"
+```
+
+Esta es la base. Todas las funciones de desenfoque que se muestran a continuación son simplemente `filter2D` con diseños de kernel específicos.
+
+## Los Cuatro Tipos de Desenfoque
+
+OpenCV proporciona cuatro métodos de desenfoque, cada uno optimizado para distintos tipos de ruido. Aquí están, del más simple al más inteligente:
+
+<Tabs>
+  <TabItem label="Averaging">
+    ### cv2.blur() — Promedio Simple
+
+    El filtro más básico. Reemplaza cada píxel con la **media** de sus vecinos. Rápido, pero difumina todo por igual — bordes, ruido y detalles por igual.
+
+    ```python
+    # Kernel size (7, 7) means a 7x7 neighborhood
+    blurred = cv2.blur(img, (7, 7))
+    ```
+
+    **Cuándo usarlo**: Suavizado rápido cuando no te importa preservar los bordes. Raramente es la mejor opción, pero es la más rápida.
+  </TabItem>
+  <TabItem label="Gaussian">
+    ### cv2.GaussianBlur() — Promedio Ponderado
+
+    Como el promedio, pero más inteligente. Los píxeles más cercanos al centro del kernel reciben **más peso** que los de los bordes. Esto produce un desenfoque más natural y menos "cuadrado."
+
+    ```python
+    # (7, 7) = kernel size, 0 = auto-calculate sigma from kernel size
+    blurred = cv2.GaussianBlur(img, (7, 7), 0)
+
+    # Or specify sigma manually for more control
+    blurred = cv2.GaussianBlur(img, (7, 7), sigmaX=1.5)
+    ```
+
+    La función Gaussiana que define los pesos:
+
+    $$G(x,y) = \frac{1}{2\pi\sigma^2} e^{-\frac{x^2 + y^2}{2\sigma^2}}$$
+
+    **Cuándo usarlo**: La **opción predeterminada** para la mayoría del preprocesamiento. Úsalo antes de la detección de bordes (Canny), la umbralización o cualquier tarea donde quieras una reducción de ruido suave.
+
+    <Aside type="caution">
+    **El tamaño del kernel debe ser impar**: `(3,3)`, `(5,5)`, `(7,7)`, etc. Un número par como `(4,4)` generará un error. ¿Por qué? Porque el kernel necesita un píxel central.
+    </Aside>
+  </TabItem>
+  <TabItem label="Median">
+    ### cv2.medianBlur() — El Eliminador de Ruido
+
+    En lugar de promediar, este filtro reemplaza cada píxel con la **mediana** de su vecindad. Este cambio aparentemente pequeño lo convierte en el rey para eliminar el **ruido sal y pimienta** (puntos negros y blancos aleatorios).
+
+    ¿Por qué? Porque unos pocos píxeles con valores extremos (la "sal" y la "pimienta") pueden desplazar un promedio de forma significativa, pero no pueden desplazar la mediana.
+
+    ```python
+    # ksize must be an odd integer (not a tuple!)
+    blurred = cv2.medianBlur(img, 7)
+    ```
+
+    **Cuándo usarlo**: Cuando tu imagen tiene ruido sal y pimienta (común en cámaras antiguas, defectos de sensor o errores de transmisión). También es bueno para reducir texturas finas manteniendo los bordes más nítidos que con el promedio.
+
+    <Aside type="note">
+    A diferencia de los otros desenfocados, `medianBlur` toma un **entero simple** para el tamaño del kernel, no una tupla. `7` en lugar de `(7, 7)`.
+    </Aside>
+  </TabItem>
+  <TabItem label="Bilateral">
+    ### cv2.bilateralFilter() — El Desenfoque Inteligente
+
+    La opción premium. El filtrado bilateral suaviza las áreas planas mientras **preserva los bordes**. Lo logra considerando no solo la _distancia_ entre píxeles (como el Gaussiano), sino también la _diferencia de intensidad_. Los píxeles con valores similares se difuminan juntos; los píxeles a través de un borde no.
+
+    ```python
+    # d=9: neighborhood diameter
+    # sigmaColor=75: how different colors can be and still blend
+    # sigmaSpace=75: spatial reach (like Gaussian sigma)
+    blurred = cv2.bilateralFilter(img, d=9, sigmaColor=75, sigmaSpace=75)
+    ```
+
+    **Cuándo usarlo**: Cuando los bordes importan — antes de la detección de bordes, procesamiento de rostros o efectos artísticos. La contrapartida es la velocidad: el bilateral es significativamente más lento que los otros tres.
+
+    <Aside type="tip">
+    **Una combinación de preprocesamiento común**: Usa el filtrado bilateral antes de la detección de bordes con Canny. Elimina el ruido sin difuminar los bordes que quieres detectar.
+    </Aside>
+  </TabItem>
+</Tabs>
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={blurComparison}
+    alt="Comparación lado a lado del desenfoque por promedio, Gaussiano, mediana y bilateral aplicados a una imagen con ruido"
+    fit="contain"
+  />
+</div>
+
+## ¿Cómo Elegir?
+
+| Tipo de Ruido | Filtro Recomendado | Por Qué |
+| :--- | :--- | :--- |
+| Ruido general (sensor, compresión) | **Gaussiano** | Buen rendimiento general, resultado de aspecto natural |
+| Sal y pimienta (puntos negros/blancos aleatorios) | **Mediana** | Ignora los valores atípicos, preserva mejor los bordes que el promedio |
+| Ruido pero los bordes deben preservarse | **Bilateral** | Mezcla inteligente que respeta los límites de los bordes |
+| La velocidad es lo único que importa | **Promedio** | El más rápido, pero de menor calidad |
+
+<Aside type="tip">
+**Regla general**: Empieza con Gaussiano. Si ves ruido sal y pimienta, cámbia a Mediana. Si los bordes se están destruyendo y tienes tiempo de procesamiento, pasa al Bilateral.
+</Aside>
+
+## Ejemplo Práctico: Reducir Ruido de una Foto
+
+```python
+import cv2
+import numpy as np
+
+# 1. Load the image
+img = cv2.imread("noisy_photo.jpg")
+if img is None:
+    raise FileNotFoundError("Could not load image!")
+
+# 2. Try different blurs and compare
+avg_blur = cv2.blur(img, (5, 5))
+gauss_blur = cv2.GaussianBlur(img, (5, 5), 0)
+median_blur = cv2.medianBlur(img, 5)
+bilateral_blur = cv2.bilateralFilter(img, 9, 75, 75)
+
+# 3. Display all results
+cv2.imshow("Original", img)
+cv2.imshow("Averaging", avg_blur)
+cv2.imshow("Gaussian", gauss_blur)
+cv2.imshow("Median", median_blur)
+cv2.imshow("Bilateral", bilateral_blur)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+<Aside type="caution">
+**¡No desenfocues en exceso!** Un kernel más grande elimina más ruido, pero también destruye detalles útiles. Siempre usa el **kernel más pequeño** que dé resultados aceptables. Si un 3x3 funciona, no uses 7x7 "solo para estar seguro."
+</Aside>
+
+## Lista de Verificación Resumen
+
+- [ ] **Kernels**: Pequeñas matrices que se deslizan por la imagen y calculan nuevos valores de píxeles mediante convolución.
+- [ ] **cv2.filter2D()**: Aplica cualquier kernel personalizado a una imagen.
+- [ ] **cv2.blur()**: Promedio simple. Rápido pero difumina todo.
+- [ ] **cv2.GaussianBlur()**: Promedio ponderado — la opción predeterminada para la mayoría de las tareas. El tamaño del kernel debe ser impar.
+- [ ] **cv2.medianBlur()**: La mejor opción para ruido sal y pimienta. Toma un entero simple, no una tupla.
+- [ ] **cv2.bilateralFilter()**: Suaviza las áreas planas preservando los bordes. Más lento pero más inteligente.
+- [ ] **El tamaño del kernel importa**: Kernel más grande = más desenfoque. Siempre usa el más pequeño que cumpla el objetivo.
