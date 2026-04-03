@@ -70,6 +70,15 @@ export default defineConfig({
 					}
 				},
 				{
+					label: 'Building OpenCV',
+					translations: {
+						'es-MX': 'Compilar OpenCV'
+					},
+					autogenerate: {
+						directory: 'building-opencv'
+					}
+				},
+				{
 					label: 'Fundamentals',
 					translations: {
 						'es-MX': 'Fundamentos'
