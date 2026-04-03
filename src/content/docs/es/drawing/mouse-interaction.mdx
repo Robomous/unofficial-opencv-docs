@@ -1,0 +1,460 @@
+---
+title: Dibujo Interactivo con Ratón
+description: Usa cv2.setMouseCallback para capturar eventos del ratón en ventanas de OpenCV y construir aplicaciones interactivas de dibujo, selectores de ROI y anotadores de puntos.
+sidebar:
+  order: 4
+---
+
+import { Image } from "astro:assets";
+import { Aside } from "@astrojs/starlight/components";
+import mouseExamples from "../../../../assets/images/drawing/mouse-interaction-examples.webp";
+
+El módulo `highgui` de OpenCV puede capturar eventos del ratón en cualquier ventana con nombre, lo que te permite construir aplicaciones interactivas — herramientas de dibujo a mano alzada, selectores de región de interés (ROI), anotadores de puntos y superposiciones visuales de depuración. El mecanismo es sencillo: registras una **función callback** que OpenCV invoca cada vez que el ratón realiza alguna acción dentro de la ventana.
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={mouseExamples}
+    alt="Ejemplos de herramientas interactivas con ratón: dibujo a mano alzada, selección de ROI y recolección de puntos"
+    fit="contain"
+  />
+</div>
+
+## Configurar un Callback del Ratón
+
+La función principal es:
+
+```python
+cv2.setMouseCallback(windowName, onMouse, param=None)
+```
+
+- **windowName** — la cadena exacta que pasaste a `cv2.namedWindow()` (o la ventana creada implícitamente por `cv2.imshow()`). Debe coincidir exactamente.
+- **onMouse** — tu función callback.
+- **param** — un objeto opcional que se reenvía al callback en cada invocación (útil para pasar estado sin usar variables globales).
+
+La firma del callback es:
+
+```python
+def onMouse(event, x, y, flags, param):
+    ...
+```
+
+| Argumento | Significado |
+|-----------|-------------|
+| `event` | Constante entera que identifica qué ocurrió (clic, soltar, mover, etc.) |
+| `x`, `y` | Coordenadas en píxeles del cursor del ratón cuando se disparó el event |
+| `flags` | Campo de bits con las teclas modificadoras y estados de botones mantenidos durante el event |
+| `param` | Lo que hayas pasado como tercer argumento a `setMouseCallback` |
+
+Aquí tienes un ejemplo mínimo que imprime las coordenadas cada vez que haces clic:
+
+```python
+import cv2
+import numpy as np
+
+def on_click(event, x, y, flags, param):
+    if event == cv2.EVENT_LBUTTONDOWN:
+        print(f"Clic izquierdo en ({x}, {y})")
+    elif event == cv2.EVENT_RBUTTONDOWN:
+        print(f"Clic derecho en ({x}, {y})")
+
+canvas = np.zeros((480, 640, 3), dtype=np.uint8)
+
+cv2.namedWindow("Click Demo")
+cv2.setMouseCallback("Click Demo", on_click)
+
+while True:
+    cv2.imshow("Click Demo", canvas)
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+cv2.destroyAllWindows()
+```
+
+## Eventos del Ratón
+
+OpenCV define un conjunto completo de constantes de eventos del ratón. Cada vez que el ratón hace algo dentro de la ventana, tu callback recibe una de estas como argumento `event`.
+
+### Tipos de Event
+
+| Constante | Disparador |
+|-----------|------------|
+| `cv2.EVENT_MOUSEMOVE` | El puntero del ratón se movió |
+| `cv2.EVENT_LBUTTONDOWN` | Se presionó el botón izquierdo |
+| `cv2.EVENT_LBUTTONUP` | Se soltó el botón izquierdo |
+| `cv2.EVENT_RBUTTONDOWN` | Se presionó el botón derecho |
+| `cv2.EVENT_RBUTTONUP` | Se soltó el botón derecho |
+| `cv2.EVENT_MBUTTONDOWN` | Se presionó el botón central |
+| `cv2.EVENT_MBUTTONUP` | Se soltó el botón central |
+| `cv2.EVENT_LBUTTONDBLCLK` | Doble clic con botón izquierdo |
+| `cv2.EVENT_RBUTTONDBLCLK` | Doble clic con botón derecho |
+| `cv2.EVENT_MBUTTONDBLCLK` | Doble clic con botón central |
+| `cv2.EVENT_MOUSEWHEEL` | Desplazamiento vertical |
+| `cv2.EVENT_MOUSEHWHEEL` | Desplazamiento horizontal |
+
+### Flags de Event
+
+El argumento `flags` es un **campo de bits** que combina el estado actual de los botones y las teclas modificadoras. Múltiples flags pueden estar activos al mismo tiempo.
+
+| Constante | Significado |
+|-----------|-------------|
+| `cv2.EVENT_FLAG_LBUTTON` | El botón izquierdo está presionado |
+| `cv2.EVENT_FLAG_RBUTTON` | El botón derecho está presionado |
+| `cv2.EVENT_FLAG_MBUTTON` | El botón central está presionado |
+| `cv2.EVENT_FLAG_CTRLKEY` | La tecla Ctrl está presionada |
+| `cv2.EVENT_FLAG_SHIFTKEY` | La tecla Shift está presionada |
+| `cv2.EVENT_FLAG_ALTKEY` | La tecla Alt está presionada |
+
+<Aside type="note">
+Los flags se verifican con **AND a nivel de bits**, no con igualdad. Usa `if flags & cv2.EVENT_FLAG_CTRLKEY:` en lugar de `if flags == cv2.EVENT_FLAG_CTRLKEY:`. La igualdad fallará cuando múltiples flags estén activos al mismo tiempo.
+</Aside>
+
+El siguiente ejemplo muestra el nombre del event y la posición del cursor en tiempo real sobre el canvas:
+
+```python
+import cv2
+import numpy as np
+
+EVENT_NAMES = {
+    cv2.EVENT_MOUSEMOVE: "MOUSEMOVE",
+    cv2.EVENT_LBUTTONDOWN: "LBUTTONDOWN",
+    cv2.EVENT_LBUTTONUP: "LBUTTONUP",
+    cv2.EVENT_RBUTTONDOWN: "RBUTTONDOWN",
+    cv2.EVENT_RBUTTONUP: "RBUTTONUP",
+    cv2.EVENT_MBUTTONDOWN: "MBUTTONDOWN",
+    cv2.EVENT_MBUTTONUP: "MBUTTONUP",
+    cv2.EVENT_LBUTTONDBLCLK: "LBUTTONDBLCLK",
+    cv2.EVENT_RBUTTONDBLCLK: "RBUTTONDBLCLK",
+    cv2.EVENT_MBUTTONDBLCLK: "MBUTTONDBLCLK",
+}
+
+info = {"text": "Mueve el raton..."}
+
+def on_mouse(event, x, y, flags, param):
+    name = EVENT_NAMES.get(event, f"EVENT_{event}")
+    modifier_parts = []
+    if flags & cv2.EVENT_FLAG_CTRLKEY:
+        modifier_parts.append("CTRL")
+    if flags & cv2.EVENT_FLAG_SHIFTKEY:
+        modifier_parts.append("SHIFT")
+    if flags & cv2.EVENT_FLAG_ALTKEY:
+        modifier_parts.append("ALT")
+    mods = " + ".join(modifier_parts) if modifier_parts else "ninguno"
+    info["text"] = f"{name} en ({x}, {y})  modificadores: {mods}"
+
+canvas = np.zeros((480, 640, 3), dtype=np.uint8)
+
+cv2.namedWindow("Event Inspector")
+cv2.setMouseCallback("Event Inspector", on_mouse)
+
+while True:
+    display = canvas.copy()
+    cv2.putText(display, info["text"], (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
+    cv2.imshow("Event Inspector", display)
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+cv2.destroyAllWindows()
+```
+
+## Gestión de Estado en Callbacks
+
+Dado que el callback es invocado por el bucle de eventos de OpenCV, necesitas una estrategia para compartir estado entre el callback y tu bucle principal. Existen tres patrones comunes.
+
+### Variables Globales
+
+El enfoque más sencillo — simplemente usa variables a nivel de módulo:
+
+```python
+drawing = False
+last_point = (-1, -1)
+
+def on_mouse(event, x, y, flags, param):
+    global drawing, last_point
+    if event == cv2.EVENT_LBUTTONDOWN:
+        drawing = True
+        last_point = (x, y)
+```
+
+Esto funciona para scripts rápidos, pero se vuelve difícil de manejar conforme crece la complejidad.
+
+### Contenedor Mutable vía `param`
+
+Pasa un diccionario como argumento `param`. Como es mutable, el callback puede actualizarlo en su lugar y el bucle principal puede leer los cambios:
+
+```python
+state = {"drawing": False, "points": []}
+
+def on_mouse(event, x, y, flags, param):
+    if event == cv2.EVENT_LBUTTONDOWN:
+        param["drawing"] = True
+        param["points"].append((x, y))
+
+cv2.setMouseCallback("Window", on_mouse, state)
+```
+
+### Basado en Clases (Recomendado)
+
+Encapsula todo el estado y la lógica de dibujo dentro de una clase. El método enlazado sirve como callback:
+
+```python
+import cv2
+import numpy as np
+
+class DrawingApp:
+    def __init__(self, width=640, height=480):
+        self.canvas = np.zeros((height, width, 3), dtype=np.uint8)
+        self.drawing = False
+        self.last_point = (-1, -1)
+        self.color = (0, 255, 0)
+
+    def on_mouse(self, event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.drawing = True
+            self.last_point = (x, y)
+        elif event == cv2.EVENT_MOUSEMOVE and self.drawing:
+            cv2.line(self.canvas, self.last_point, (x, y), self.color, 2)
+            self.last_point = (x, y)
+        elif event == cv2.EVENT_LBUTTONUP:
+            self.drawing = False
+
+    def run(self):
+        cv2.namedWindow("App")
+        cv2.setMouseCallback("App", self.on_mouse)
+        while True:
+            cv2.imshow("App", self.canvas)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+        cv2.destroyAllWindows()
+
+app = DrawingApp()
+app.run()
+```
+
+<Aside type="tip">
+Usa el patrón basado en clases o el de diccionario con param para cualquier cosa más allá de un prototipo rápido. Las variables globales dificultan reiniciar el estado, manejar múltiples ventanas o escribir pruebas.
+</Aside>
+
+## Ejemplo Práctico — Herramienta de Dibujo a Mano Alzada
+
+Haz clic y arrastra para dibujar trazos a mano alzada. Cambia de color con el teclado (`r` rojo, `g` verde, `b` azul), presiona `c` para limpiar el canvas y `q` para salir.
+
+```python
+import cv2
+import numpy as np
+
+class FreehandTool:
+    COLORS = {
+        ord("r"): (0, 0, 255),
+        ord("g"): (0, 255, 0),
+        ord("b"): (255, 0, 0),
+    }
+
+    def __init__(self, width=640, height=480):
+        self.width = width
+        self.height = height
+        self.canvas = np.zeros((height, width, 3), dtype=np.uint8)
+        self.drawing = False
+        self.last_point = (-1, -1)
+        self.color = (0, 255, 0)
+        self.thickness = 2
+
+    def on_mouse(self, event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.drawing = True
+            self.last_point = (x, y)
+
+        elif event == cv2.EVENT_MOUSEMOVE:
+            if self.drawing:
+                cv2.line(self.canvas, self.last_point, (x, y),
+                         self.color, self.thickness)
+                self.last_point = (x, y)
+
+        elif event == cv2.EVENT_LBUTTONUP:
+            self.drawing = False
+
+    def run(self):
+        window = "Freehand Drawing"
+        cv2.namedWindow(window)
+        cv2.setMouseCallback(window, self.on_mouse)
+
+        while True:
+            # Mostrar indicador de color en la esquina superior izquierda
+            display = self.canvas.copy()
+            cv2.circle(display, (20, 20), 10, self.color, -1)
+            cv2.putText(display, "r/g/b: color | c: limpiar | q: salir",
+                        (40, 25), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (200, 200, 200), 1)
+
+            cv2.imshow(window, display)
+            key = cv2.waitKey(1) & 0xFF
+
+            if key == ord("q"):
+                break
+            elif key == ord("c"):
+                self.canvas = np.zeros((self.height, self.width, 3),
+                                       dtype=np.uint8)
+            elif key in self.COLORS:
+                self.color = self.COLORS[key]
+
+        cv2.destroyAllWindows()
+
+tool = FreehandTool()
+tool.run()
+```
+
+La idea clave es rastrear tres eventos: `LBUTTONDOWN` inicia un trazo y registra el primer punto, `MOUSEMOVE` mientras el flag del botón izquierdo está activo dibuja segmentos entre puntos consecutivos, y `LBUTTONUP` finaliza el trazo.
+
+## Ejemplo Práctico — Selector de ROI
+
+Haz clic y arrastra para seleccionar una región rectangular. El rectángulo se dibuja en tiempo real mientras arrastras. Al soltar, la región seleccionada se recorta y se muestra en una ventana separada.
+
+```python
+import cv2
+import numpy as np
+
+class ROISelector:
+    def __init__(self, width=640, height=480):
+        self.canvas = np.zeros((height, width, 3), dtype=np.uint8)
+        # Dibujar contenido para tener algo que recortar
+        for i in range(0, height, 40):
+            cv2.line(self.canvas, (0, i), (width, i), (50, 50, 50), 1)
+        for j in range(0, width, 40):
+            cv2.line(self.canvas, (j, 0), (j, height), (50, 50, 50), 1)
+        cv2.putText(self.canvas, "Arrastra para seleccionar una region",
+                    (150, 240), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8, (0, 200, 200), 2)
+
+        self.dragging = False
+        self.start = (-1, -1)
+        self.end = (-1, -1)
+        self.selection_made = False
+
+    def on_mouse(self, event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.dragging = True
+            self.start = (x, y)
+            self.end = (x, y)
+            self.selection_made = False
+
+        elif event == cv2.EVENT_MOUSEMOVE and self.dragging:
+            self.end = (x, y)
+
+        elif event == cv2.EVENT_LBUTTONUP:
+            self.dragging = False
+            self.end = (x, y)
+            self.selection_made = True
+
+    def run(self):
+        window = "ROI Selector"
+        cv2.namedWindow(window)
+        cv2.setMouseCallback(window, self.on_mouse)
+
+        while True:
+            display = self.canvas.copy()
+
+            # Dibujar el rectangulo de seleccion mientras se arrastra
+            if self.dragging:
+                cv2.rectangle(display, self.start, self.end,
+                              (0, 255, 255), 2)
+
+            # Recortar y mostrar la region seleccionada
+            if self.selection_made:
+                x1 = min(self.start[0], self.end[0])
+                y1 = min(self.start[1], self.end[1])
+                x2 = max(self.start[0], self.end[0])
+                y2 = max(self.start[1], self.end[1])
+
+                # Proteger contra selecciones de tamaño cero
+                if x2 - x1 > 1 and y2 - y1 > 1:
+                    roi = self.canvas[y1:y2, x1:x2]
+                    cv2.imshow("ROI Recortado", roi)
+                    cv2.rectangle(display, (x1, y1), (x2, y2),
+                                  (0, 255, 0), 2)
+
+                self.selection_made = False
+
+            cv2.imshow(window, display)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+
+        cv2.destroyAllWindows()
+
+selector = ROISelector()
+selector.run()
+```
+
+<Aside type="caution">
+El callback del ratón se ejecuta en el hilo del bucle de eventos de OpenCV. Evita realizar cómputos pesados dentro de él — almacena las coordenadas y los flags, y deja que el bucle principal se encargue del dibujo y el procesamiento. Trabajo de larga duración dentro del callback congelará la interfaz.
+</Aside>
+
+## Ejemplo Práctico — Recolector de Puntos
+
+Haz clic izquierdo para colocar puntos numerados sobre el canvas. Haz clic derecho para eliminar el último punto. Presiona `Enter` para finalizar e imprimir todas las coordenadas recolectadas en la terminal.
+
+```python
+import cv2
+import numpy as np
+
+class PointCollector:
+    def __init__(self, width=640, height=480):
+        self.width = width
+        self.height = height
+        self.canvas = np.zeros((height, width, 3), dtype=np.uint8)
+        self.points = []
+
+    def on_mouse(self, event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.points.append((x, y))
+
+        elif event == cv2.EVENT_RBUTTONDOWN:
+            if self.points:
+                self.points.pop()
+
+    def draw_points(self, image):
+        for i, (px, py) in enumerate(self.points):
+            cv2.circle(image, (px, py), 5, (0, 255, 0), -1)
+            label = f"{i + 1} ({px},{py})"
+            cv2.putText(image, label, (px + 10, py - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4,
+                        (255, 255, 255), 1)
+
+            # Dibujar linea conectando puntos consecutivos
+            if i > 0:
+                cv2.line(image, self.points[i - 1], (px, py),
+                         (100, 100, 255), 1)
+
+    def run(self):
+        window = "Point Collector"
+        cv2.namedWindow(window)
+        cv2.setMouseCallback(window, self.on_mouse)
+
+        while True:
+            display = self.canvas.copy()
+            self.draw_points(display)
+
+            status = f"Puntos: {len(self.points)} | " \
+                     "Izq: agregar | Der: deshacer | Enter: listo | q: salir"
+            cv2.putText(display, status, (10, self.height - 15),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                        (180, 180, 180), 1)
+
+            cv2.imshow(window, display)
+            key = cv2.waitKey(1) & 0xFF
+
+            if key == ord("q"):
+                break
+            elif key == 13:  # Tecla Enter
+                print(f"\nSe recolectaron {len(self.points)} puntos:")
+                for i, (px, py) in enumerate(self.points):
+                    print(f"  Punto {i + 1}: ({px}, {py})")
+                break
+
+        cv2.destroyAllWindows()
+        return self.points
+
+collector = PointCollector()
+points = collector.run()
+```
+
+Los tres ejemplos siguen la misma arquitectura: una clase mantiene el estado mutable, un método enlazado sirve como callback del ratón, y el bucle principal lee ese estado para producir la visualización. Una vez que internalizas este patrón, puedes construir cualquier herramienta interactiva — anotadores de polígonos, selectores de color, reglas de medición — simplemente cambiando la lógica de manejo de eventos.

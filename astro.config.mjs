@@ -97,6 +97,15 @@ export default defineConfig({
 					}
 				},
 				{
+					label: 'Drawing & Annotations',
+					translations: {
+						'es-MX': 'Dibujo y Anotaciones'
+					},
+					autogenerate: {
+						directory: 'drawing'
+					}
+				},
+				{
 					label: 'Contributing to OpenCV',
 					translations: {
 						'es-MX': 'Contribuir a OpenCV'

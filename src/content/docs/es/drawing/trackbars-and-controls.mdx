@@ -1,0 +1,314 @@
+---
+title: Trackbars y Controles de UI
+description: Usa cv2.createTrackbar para agregar controles deslizantes interactivos y ajustar parámetros en tiempo real en aplicaciones de OpenCV.
+sidebar:
+  order: 5
+---
+
+import { Image } from "astro:assets";
+import { Aside } from "@astrojs/starlight/components";
+import hsvPicker from "../../../../assets/images/drawing/trackbar-hsv-picker.webp";
+import cannyTuner from "../../../../assets/images/drawing/trackbar-canny-tuner.webp";
+
+Los trackbars (controles deslizantes) son el widget de interfaz más sencillo integrado en OpenCV para el ajuste interactivo de parámetros. Cuando estás buscando el valor de umbral correcto, el mejor tamaño de kernel o un rango de color óptimo, un trackbar te permite ajustar valores en tiempo real y ver el resultado de inmediato. Combinados con las funciones de dibujo de OpenCV, los trackbars permiten crear herramientas de prototipado rápido sin necesidad de un framework de GUI externo. Todos los ejemplos en esta página crean lienzos con `np.zeros()` para que puedas ejecutarlos sin necesidad de imágenes externas.
+
+## Creación de Trackbars
+
+La función principal es `cv2.createTrackbar`:
+
+```python
+cv2.createTrackbar(trackbarName, windowName, value, count, onChange)
+```
+
+| Parámetro | Descripción |
+|-----------|-------------|
+| `trackbarName` | Etiqueta que se muestra junto al control deslizante. |
+| `windowName` | Nombre de la ventana existente donde se adjunta el trackbar. |
+| `value` | Posición inicial del control deslizante. |
+| `count` | Valor máximo que puede alcanzar el control (el mínimo siempre es 0). |
+| `onChange` | Función callback que se invoca cada vez que el control se mueve. Recibe un único argumento `int` — la nueva posición. |
+
+OpenCV también proporciona funciones complementarias para leer y escribir el estado del trackbar:
+
+- **`cv2.getTrackbarPos(trackbarName, windowName)`** — devuelve la posición actual como un `int`.
+- **`cv2.setTrackbarPos(trackbarName, windowName, pos)`** — mueve el control deslizante de forma programática.
+- **`cv2.setTrackbarMin(trackbarName, windowName, minval)`** — establece un valor mínimo (OpenCV 3.4+).
+- **`cv2.setTrackbarMax(trackbarName, windowName, maxval)`** — cambia el valor máximo en tiempo de ejecución.
+
+<Aside type="caution">
+**Debes** crear la ventana con `cv2.namedWindow` antes de llamar a `cv2.createTrackbar`. Si la ventana aún no existe, OpenCV lanzará un error o fallará silenciosamente dependiendo de la plataforma.
+</Aside>
+
+### Ejemplo Mínimo — Control Deslizante de Brillo
+
+```python
+import cv2
+import numpy as np
+
+cv2.namedWindow("Brightness")
+cv2.createTrackbar("Value", "Brightness", 0, 255, lambda x: None)
+
+while True:
+    brightness = cv2.getTrackbarPos("Value", "Brightness")
+
+    # Crear un lienzo en blanco rellenado con el valor del trackbar
+    canvas = np.zeros((300, 400, 3), dtype=np.uint8)
+    canvas[:] = (brightness, brightness, brightness)
+
+    cv2.imshow("Brightness", canvas)
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+cv2.destroyAllWindows()
+```
+
+Arrastra el control deslizante de 0 (negro) a 255 (blanco) y el lienzo se actualiza instantáneamente.
+
+## El Patrón Callback
+
+Cada trackbar requiere una función callback. Esta recibe un único argumento entero — la nueva posición del control. Para los casos más simples, pasa un lambda que no haga nada:
+
+```python
+cv2.createTrackbar("Size", "Window", 5, 100, lambda x: None)
+```
+
+Esto es perfectamente válido. El lambda descarta el valor, y tu bucle principal lee las posiciones con `cv2.getTrackbarPos` cuando las necesita.
+
+Para interfaces más complejas con múltiples trackbars, el **patrón de sondeo** (polling) mantiene toda la lógica centralizada en el bucle principal en lugar de dispersarla entre callbacks individuales:
+
+```python
+import cv2
+import numpy as np
+
+cv2.namedWindow("Color Mixer")
+cv2.createTrackbar("Red", "Color Mixer", 0, 255, lambda x: None)
+cv2.createTrackbar("Green", "Color Mixer", 0, 255, lambda x: None)
+cv2.createTrackbar("Blue", "Color Mixer", 0, 255, lambda x: None)
+
+while True:
+    r = cv2.getTrackbarPos("Red", "Color Mixer")
+    g = cv2.getTrackbarPos("Green", "Color Mixer")
+    b = cv2.getTrackbarPos("Blue", "Color Mixer")
+
+    canvas = np.zeros((300, 400, 3), dtype=np.uint8)
+    canvas[:] = (b, g, r)  # OpenCV usa el orden BGR
+
+    cv2.putText(canvas, f"RGB({r}, {g}, {b})", (20, 280),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+    cv2.imshow("Color Mixer", canvas)
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+cv2.destroyAllWindows()
+```
+
+<Aside type="tip">
+Prefiere el **patrón de sondeo** (leer todas las posiciones de los trackbars en el bucle principal) sobre callbacks individuales. Es más fácil de razonar, evita posibles condiciones de carrera entre callbacks y mantiene toda tu lógica en un solo lugar.
+</Aside>
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={hsvPicker}
+    alt="Selector de rango de color HSV mostrando imagen original, máscara y resultado filtrado"
+    fit="contain"
+  />
+</div>
+
+## Ejemplo Práctico — Selector de Rango de Color HSV
+
+Una de las demostraciones más útiles con trackbars es un selector de rango de color HSV. Cuando construyes segmentación basada en color, necesitas encontrar los límites inferior y superior correctos en HSV — seis trackbars hacen esto interactivo.
+
+<Aside type="note">
+El rango de **Hue** en OpenCV es **0–179**, no 0–360. OpenCV almacena el Hue en un `uint8`, por lo que reduce a la mitad el rango estándar de 0–360 para que quepa. Este es un detalle crucial al establecer los límites del trackbar e interpretar los valores.
+</Aside>
+
+```python
+import cv2
+import numpy as np
+
+cv2.namedWindow("HSV Range Picker")
+cv2.createTrackbar("H min", "HSV Range Picker", 0, 179, lambda x: None)
+cv2.createTrackbar("S min", "HSV Range Picker", 0, 255, lambda x: None)
+cv2.createTrackbar("V min", "HSV Range Picker", 0, 255, lambda x: None)
+cv2.createTrackbar("H max", "HSV Range Picker", 179, 179, lambda x: None)
+cv2.createTrackbar("S max", "HSV Range Picker", 255, 255, lambda x: None)
+cv2.createTrackbar("V max", "HSV Range Picker", 255, 255, lambda x: None)
+
+while True:
+    sample = np.zeros((300, 400, 3), dtype=np.uint8)
+    cv2.circle(sample, (100, 150), 60, (0, 0, 255), -1)
+    cv2.rectangle(sample, (180, 80), (280, 220), (0, 255, 0), -1)
+    cv2.circle(sample, (340, 150), 50, (255, 0, 0), -1)
+    cv2.ellipse(sample, (200, 260), (80, 30), 0, 0, 360, (0, 255, 255), -1)
+    h_min = cv2.getTrackbarPos("H min", "HSV Range Picker")
+    s_min = cv2.getTrackbarPos("S min", "HSV Range Picker")
+    v_min = cv2.getTrackbarPos("V min", "HSV Range Picker")
+    h_max = cv2.getTrackbarPos("H max", "HSV Range Picker")
+    s_max = cv2.getTrackbarPos("S max", "HSV Range Picker")
+    v_max = cv2.getTrackbarPos("V max", "HSV Range Picker")
+    lower = np.array([h_min, s_min, v_min])
+    upper = np.array([h_max, s_max, v_max])
+    hsv = cv2.cvtColor(sample, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv, lower, upper)
+    result = cv2.bitwise_and(sample, sample, mask=mask)
+    cv2.imshow("HSV Range Picker", sample)
+    cv2.imshow("Mask", mask)
+    cv2.imshow("Filtered Result", result)
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+cv2.destroyAllWindows()
+```
+
+Ajusta los seis controles deslizantes para aislar colores específicos. La ventana de máscara muestra el resultado binario de `cv2.inRange`, y el resultado filtrado muestra únicamente los píxeles que coinciden.
+
+## Ejemplo Práctico — Ajustador de Desenfoque en Tiempo Real
+
+El desenfoque gaussiano requiere un tamaño de kernel **impar**. Un trackbar que va de 1 a 50 se puede convertir a un valor impar con `ksize = val * 2 + 1`, garantizando kernels válidos de 3 a 101.
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((300, 400, 3), dtype=np.uint8)
+cv2.rectangle(canvas, (50, 50), (150, 150), (0, 255, 0), -1)
+cv2.circle(canvas, (280, 100), 50, (0, 0, 255), -1)
+cv2.putText(canvas, "OpenCV", (100, 250), cv2.FONT_HERSHEY_SIMPLEX, 1.2,
+            (255, 255, 255), 2)
+cv2.namedWindow("Blur Adjuster")
+cv2.createTrackbar("Kernel", "Blur Adjuster", 0, 50, lambda x: None)
+cv2.createTrackbar("Sigma", "Blur Adjuster", 0, 20, lambda x: None)
+
+while True:
+    val = cv2.getTrackbarPos("Kernel", "Blur Adjuster")
+    sigma = cv2.getTrackbarPos("Sigma", "Blur Adjuster")
+    if val == 0:
+        blurred = canvas.copy()
+    else:
+        ksize = val * 2 + 1
+        blurred = cv2.GaussianBlur(canvas, (ksize, ksize), sigma)
+    display = blurred.copy()
+    cv2.putText(display, f"Kernel: {val*2+1}x{val*2+1}  Sigma: {sigma}",
+                (10, 290), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+
+    cv2.imshow("Blur Adjuster", display)
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+cv2.destroyAllWindows()
+```
+
+Cuando el trackbar del kernel está en 0, no se aplica desenfoque. A medida que lo incrementas, las formas y el texto se suavizan progresivamente. Establecer sigma en 0 permite que OpenCV lo calcule automáticamente a partir del tamaño del kernel.
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={cannyTuner}
+    alt="Detección de bordes Canny con diferentes valores de umbral mostrando sensibilidad variable de bordes"
+    fit="contain"
+  />
+</div>
+
+## Ejemplo Práctico — Ajustador de Detección de Bordes Canny
+
+La detección de bordes Canny es muy sensible a sus dos parámetros de umbral. Una interfaz con trackbars te permite encontrar los valores óptimos al instante.
+
+```python
+import cv2
+import numpy as np
+canvas = np.zeros((300, 400, 3), dtype=np.uint8)
+cv2.rectangle(canvas, (30, 30), (130, 130), (255, 255, 255), 2)
+cv2.circle(canvas, (220, 80), 50, (200, 200, 200), -1)
+cv2.line(canvas, (300, 20), (380, 140), (150, 150, 150), 3)
+cv2.ellipse(canvas, (200, 220), (100, 40), 30, 0, 360, (180, 180, 180), -1)
+cv2.putText(canvas, "Edges", (50, 260), cv2.FONT_HERSHEY_SIMPLEX, 1.5,
+            (120, 120, 120), 3)
+gray = cv2.cvtColor(canvas, cv2.COLOR_BGR2GRAY)
+cv2.namedWindow("Canny Tuner")
+cv2.createTrackbar("Threshold 1", "Canny Tuner", 50, 500, lambda x: None)
+cv2.createTrackbar("Threshold 2", "Canny Tuner", 150, 500, lambda x: None)
+
+while True:
+    t1 = cv2.getTrackbarPos("Threshold 1", "Canny Tuner")
+    t2 = cv2.getTrackbarPos("Threshold 2", "Canny Tuner")
+    edges = cv2.Canny(gray, t1, t2)
+    edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+    combined = np.hstack([canvas, edges_bgr])
+    cv2.putText(combined, f"T1: {t1}  T2: {t2}", (420, 290),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+    cv2.imshow("Canny Tuner", combined)
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+cv2.destroyAllWindows()
+```
+
+La mitad izquierda muestra la imagen original y la mitad derecha muestra los bordes detectados. Umbrales más bajos producen más bordes (incluyendo ruido), mientras que umbrales más altos conservan solo los gradientes más fuertes. Una guía común es que threshold2 sea aproximadamente 2–3 veces threshold1.
+
+## Ejemplo Práctico — Combinando Eventos de Mouse y Trackbars
+
+Este ejemplo final construye una mini aplicación de dibujo que combina trackbars para la configuración de herramientas, eventos de mouse para la interacción y atajos de teclado para cambiar de herramienta.
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((500, 700, 3), dtype=np.uint8)
+drawing = False
+start_x, start_y = -1, -1
+tool = "circle"
+
+def mouse_callback(event, x, y, flags, param):
+    global drawing, start_x, start_y, canvas
+    win = "Drawing App"
+    size = cv2.getTrackbarPos("Brush Size", win)
+    r = cv2.getTrackbarPos("Red", win)
+    g = cv2.getTrackbarPos("Green", win)
+    b = cv2.getTrackbarPos("Blue", win)
+    color = (b, g, r)
+    if event == cv2.EVENT_LBUTTONDOWN:
+        drawing = True
+        start_x, start_y = x, y
+    elif event == cv2.EVENT_MOUSEMOVE:
+        if drawing and tool == "circle":
+            cv2.circle(canvas, (x, y), size, color, -1)
+    elif event == cv2.EVENT_LBUTTONUP:
+        drawing = False
+        if tool == "line":
+            cv2.line(canvas, (start_x, start_y), (x, y), color, size)
+        elif tool == "rectangle":
+            cv2.rectangle(canvas, (start_x, start_y), (x, y), color, size)
+        elif tool == "circle":
+            cv2.circle(canvas, (x, y), size, color, -1)
+
+cv2.namedWindow("Drawing App")
+cv2.createTrackbar("Brush Size", "Drawing App", 5, 50, lambda x: None)
+cv2.createTrackbar("Red", "Drawing App", 255, 255, lambda x: None)
+cv2.createTrackbar("Green", "Drawing App", 255, 255, lambda x: None)
+cv2.createTrackbar("Blue", "Drawing App", 255, 255, lambda x: None)
+cv2.setMouseCallback("Drawing App", mouse_callback)
+
+while True:
+    display = canvas.copy()
+    cv2.putText(display, f"Tool: {tool}", (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+    cv2.putText(display, "Keys: [c]ircle [l]ine [r]ect [s]ave [q]uit", (10, 490),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (150, 150, 150), 1)
+    cv2.imshow("Drawing App", display)
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord("q"):
+        break
+    elif key == ord("l"):
+        tool = "line"
+    elif key == ord("r"):
+        tool = "rectangle"
+    elif key == ord("c"):
+        tool = "circle"
+    elif key == ord("s"):
+        cv2.imwrite("drawing_output.png", canvas)
+        print("Saved drawing_output.png")
+
+cv2.destroyAllWindows()
+```
+
+Los **trackbars** controlan el tamaño del pincel y el color RGB. El callback del mouse lee las posiciones cada vez que se dispara, por lo que los cambios surten efecto de inmediato. Los **eventos de mouse** manejan el dibujo — hacer clic y arrastrar con círculo pinta a mano alzada, mientras que línea y rectángulo dibujan entre los puntos de presión y liberación. Los **atajos de teclado** cambian de herramienta: `l` línea, `r` rectángulo, `c` círculo, `s` guardar, `q` salir. Este patrón escala bien hacia herramientas de prototipado más complejas como editores de anotaciones y selectores de ROI.
