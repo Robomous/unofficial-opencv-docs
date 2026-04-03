@@ -1,0 +1,433 @@
+---
+title: Fundamentos de Dibujo
+description: Dibuja líneas, rectángulos, círculos, elipses y polígonos sobre imágenes usando las funciones de dibujo integradas de OpenCV.
+sidebar:
+  order: 1
+---
+
+import { Aside } from "@astrojs/starlight/components";
+import { Image } from "astro:assets";
+import coordinateSystem from "../../../../assets/images/drawing/coordinate-system.webp";
+import basicShapesOverview from "../../../../assets/images/drawing/basic-shapes-overview.webp";
+
+OpenCV proporciona un conjunto de funciones para dibujar formas geométricas directamente sobre imágenes. Dado que las imágenes son simplemente arrays de NumPy, estas funciones modifican el array **in-place** — no devuelven una imagen nueva. El dibujo es esencial para visualizar resultados de visión por computadora: bounding boxes alrededor de objetos detectados, keypoints sobre características, superposiciones de regiones y visualizaciones de depuración durante el desarrollo.
+
+Cada ejemplo en esta página crea un lienzo en blanco con `np.zeros()` para que puedas ejecutarlos sin necesidad de imágenes externas.
+
+## El Sistema de Coordenadas
+
+OpenCV utiliza un sistema de coordenadas estilo pantalla. El **origen (0, 0)** está en la **esquina superior izquierda** de la imagen. El **eje x** aumenta hacia la derecha y el **eje y** aumenta hacia abajo. Todas las funciones de dibujo esperan coordenadas como tuplas `(x, y)` — esto es el orden opuesto a la indexación de NumPy, que usa `(fila, columna)`.
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={coordinateSystem}
+    alt="Sistema de coordenadas de OpenCV mostrando el origen en la esquina superior izquierda con x aumentando a la derecha y y aumentando hacia abajo"
+    fit="contain"
+  />
+</div>
+
+```python
+import cv2
+import numpy as np
+
+# Crear un lienzo negro de 400x500 (alto=400, ancho=500, 3 canales)
+canvas = np.zeros((400, 500, 3), dtype=np.uint8)
+
+# Dibujar el eje x (flecha horizontal)
+cv2.arrowedLine(canvas, (10, 200), (490, 200), (255, 255, 255), 1, tipLength=0.03)
+cv2.putText(canvas, "x", (470, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+
+# Dibujar el eje y (flecha vertical)
+cv2.arrowedLine(canvas, (250, 10), (250, 390), (255, 255, 255), 1, tipLength=0.03)
+cv2.putText(canvas, "y", (260, 390), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+
+# Marcar el origen
+cv2.circle(canvas, (250, 200), 4, (0, 0, 255), -1)
+cv2.putText(canvas, "(0,0) origin", (260, 220), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+
+cv2.imshow("Coordinate System", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+<Aside type="caution">
+Las coordenadas son **(x, y)** — primero horizontal, luego vertical. La indexación de NumPy es **(fila, columna)** que equivale a **(y, x)**. Confundir este orden es uno de los bugs más comunes al trabajar con las funciones de dibujo de OpenCV.
+</Aside>
+
+## Color y Parámetros Comunes
+
+Todas las funciones de dibujo comparten un conjunto común de parámetros que controlan la apariencia.
+
+### Color
+
+El color se especifica como una **tupla BGR** `(B, G, R)` para imágenes de 3 canales. Para imágenes en escala de grises de un solo canal, se pasa un entero escalar. Algunos colores comunes en BGR:
+
+- **Rojo**: `(0, 0, 255)`
+- **Verde**: `(0, 255, 0)`
+- **Azul**: `(255, 0, 0)`
+- **Blanco**: `(255, 255, 255)`
+- **Amarillo**: `(0, 255, 255)`
+
+### Grosor
+
+El parámetro `thickness` controla el ancho del trazo en píxeles. Un valor positivo dibuja un contorno de ese grosor. Pasar **`-1`** o **`cv2.FILLED`** rellena la forma por completo.
+
+### Tipo de Línea
+
+El parámetro `lineType` controla cómo se rasterizan las líneas:
+
+- **`cv2.LINE_4`** — Línea Bresenham de 4 conexiones. La más rápida pero con más escalonamiento.
+- **`cv2.LINE_8`** — Línea Bresenham de 8 conexiones. Valor predeterminado para todas las funciones de dibujo.
+- **`cv2.LINE_AA`** — Línea con anti-aliasing usando filtrado gaussiano. La más suave pero más lenta.
+
+El parámetro `shift` permite precisión sub-píxel al tratar las coordenadas como números de punto fijo. Esto es avanzado y rara vez se necesita para tareas de dibujo comunes.
+
+<Aside type="tip">
+Usa `cv2.LINE_AA` para visualizaciones finales e imágenes exportadas — produce bordes notablemente más suaves. Usa el valor predeterminado `cv2.LINE_8` para dibujo en tiempo real o de depuración, donde el rendimiento importa más que la apariencia.
+</Aside>
+
+## Dibujar Líneas — `cv2.line()`
+
+```python
+cv2.line(img, pt1, pt2, color, thickness=1, lineType=cv2.LINE_8)
+```
+
+Dibuja una línea recta desde `pt1` hasta `pt2`. Ambos puntos son tuplas de enteros `(x, y)`.
+
+### Patrón de cuadrícula
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((400, 400, 3), dtype=np.uint8)
+
+# Dibujar una cuadrícula con espaciado de 50px
+for x in range(0, 401, 50):
+    cv2.line(canvas, (x, 0), (x, 400), (40, 40, 40), 1)
+for y in range(0, 401, 50):
+    cv2.line(canvas, (0, y), (400, y), (40, 40, 40), 1)
+
+# Dibujar líneas de ejes más gruesas a través del centro
+cv2.line(canvas, (200, 0), (200, 400), (0, 255, 0), 2)
+cv2.line(canvas, (0, 200), (400, 200), (0, 255, 0), 2)
+
+cv2.imshow("Grid", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+### Cruceta en el centro
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((300, 300, 3), dtype=np.uint8)
+cx, cy = 150, 150
+size = 20
+
+cv2.line(canvas, (cx - size, cy), (cx + size, cy), (0, 255, 255), 2, cv2.LINE_AA)
+cv2.line(canvas, (cx, cy - size), (cx, cy + size), (0, 255, 255), 2, cv2.LINE_AA)
+
+cv2.imshow("Crosshair", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+## Dibujar Rectángulos — `cv2.rectangle()`
+
+```python
+cv2.rectangle(img, pt1, pt2, color, thickness=1, lineType=cv2.LINE_8)
+```
+
+Dibuja un rectángulo definido por su esquina **superior izquierda** `pt1` y su esquina **inferior derecha** `pt2`. También puedes pasar una tupla `(x, y, w, h)` como `rec` en la forma alternativa, pero la forma de dos puntos es mucho más común.
+
+<Aside type="caution">
+`pt1` y `pt2` son las esquinas **superior izquierda** e **inferior derecha** del rectángulo — NO el centro y el tamaño. Si tienes centro y dimensiones, calcula las esquinas primero: `pt1 = (cx - w//2, cy - h//2)` y `pt2 = (cx + w//2, cy + h//2)`.
+</Aside>
+
+### Bounding box con contorno
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((400, 400, 3), dtype=np.uint8)
+
+# Dibujar un rectángulo con contorno (simulando un bounding box)
+cv2.rectangle(canvas, (80, 60), (320, 340), (0, 255, 0), 2)
+
+cv2.imshow("Bounding Box", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+### Rectángulo relleno semi-transparente
+
+OpenCV no soporta mezcla alfa directamente, pero puedes lograr transparencia dibujando sobre una copia y mezclando con `cv2.addWeighted()`.
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((400, 400, 3), dtype=np.uint8)
+
+# Dibujar algo de contenido de fondo
+cv2.circle(canvas, (200, 200), 80, (255, 255, 255), 2)
+cv2.putText(canvas, "Background", (120, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 1)
+
+# Crear una capa superpuesta para el rectángulo semi-transparente
+overlay = canvas.copy()
+cv2.rectangle(overlay, (50, 50), (350, 150), (255, 0, 0), cv2.FILLED)
+
+# Mezclar: 60% original + 40% superposición
+alpha = 0.4
+cv2.addWeighted(overlay, alpha, canvas, 1 - alpha, 0, canvas)
+
+cv2.imshow("Semi-Transparent Rectangle", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+## Dibujar Círculos — `cv2.circle()`
+
+```python
+cv2.circle(img, center, radius, color, thickness=1, lineType=cv2.LINE_8)
+```
+
+Dibuja un círculo con el `center` `(x, y)` y `radius` dados en píxeles. Pasa `thickness=-1` para rellenar.
+
+### Círculos concéntricos (diana)
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((400, 400, 3), dtype=np.uint8)
+center = (200, 200)
+colors = [(0, 0, 255), (0, 165, 255), (0, 255, 255), (0, 255, 0), (255, 0, 0)]
+
+for i, color in enumerate(colors):
+    radius = 180 - i * 35
+    cv2.circle(canvas, center, radius, color, 2, cv2.LINE_AA)
+
+# Punto central relleno
+cv2.circle(canvas, center, 10, (255, 255, 255), -1, cv2.LINE_AA)
+
+cv2.imshow("Bullseye", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+### Círculos rellenos como marcadores de puntos
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((300, 300, 3), dtype=np.uint8)
+
+# Simular keypoints detectados
+keypoints = [(50, 80), (150, 200), (250, 120), (100, 260), (220, 50)]
+
+for pt in keypoints:
+    cv2.circle(canvas, pt, 6, (0, 255, 0), -1, cv2.LINE_AA)     # punto relleno
+    cv2.circle(canvas, pt, 12, (0, 255, 0), 1, cv2.LINE_AA)      # anillo exterior
+
+cv2.imshow("Keypoints", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+## Dibujar Elipses — `cv2.ellipse()`
+
+```python
+cv2.ellipse(img, center, axes, angle, startAngle, endAngle, color, thickness=1, lineType=cv2.LINE_8)
+```
+
+Esta función tiene varios parámetros:
+
+- **`center`** — `(x, y)` centro de la elipse.
+- **`axes`** — `(semi_eje_mayor, semi_eje_menor)` — mitades de las longitudes de los ejes mayor y menor.
+- **`angle`** — Rotación de la elipse en grados (sentido horario).
+- **`startAngle` / `endAngle`** — Rango angular a dibujar, en grados. Usa `0` a `360` para una elipse completa.
+
+### Elipse rotada
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((400, 400, 3), dtype=np.uint8)
+
+# Elipse completa rotada 30 grados
+cv2.ellipse(canvas, (200, 200), (150, 80), 30, 0, 360, (0, 255, 255), 2, cv2.LINE_AA)
+
+# Misma elipse sin rotación para comparación
+cv2.ellipse(canvas, (200, 200), (150, 80), 0, 0, 360, (100, 100, 100), 1, cv2.LINE_AA)
+
+cv2.imshow("Rotated Ellipse", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+### Arco y segmento circular
+
+Puedes dibujar elipses parciales configurando `startAngle` y `endAngle` con valores distintos a `0` y `360`. Una elipse parcial rellena crea una cuña tipo gráfico de pastel.
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((400, 400, 3), dtype=np.uint8)
+
+# Arco de 0 a 270 grados (solo contorno)
+cv2.ellipse(canvas, (150, 200), (100, 60), 0, 0, 270, (255, 0, 255), 2, cv2.LINE_AA)
+
+# Segmento circular relleno de 0 a 270 grados
+cv2.ellipse(canvas, (300, 200), (80, 80), 0, 0, 270, (0, 200, 200), cv2.FILLED, cv2.LINE_AA)
+
+cv2.imshow("Arc and Pie", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+<Aside type="note">
+Los ángulos en `cv2.ellipse()` se miden **en sentido horario desde el eje x positivo** (posición de las 3 en punto). Esto sigue la convención de coordenadas de pantalla donde y aumenta hacia abajo. Un `startAngle` de 0 y `endAngle` de 90 dibuja el cuarto inferior derecho.
+</Aside>
+
+## Dibujar Polígonos — `cv2.polylines()` y `cv2.fillPoly()`
+
+```python
+cv2.polylines(img, pts, isClosed, color, thickness=1, lineType=cv2.LINE_8)
+cv2.fillPoly(img, pts, color, lineType=cv2.LINE_8)
+```
+
+Ambas funciones aceptan `pts` como una **lista de arrays**, donde cada array tiene forma `(N, 1, 2)` y dtype `np.int32`. El parámetro `isClosed` en `polylines` determina si el último punto se conecta de vuelta al primero.
+
+<Aside type="caution">
+Los arrays de `pts` **deben** ser `np.int32` con forma `(N, 1, 2)`. Si tienes una lista simple de puntos, conviértela con: `pts = np.array([[x1,y1],[x2,y2],...], dtype=np.int32).reshape((-1, 1, 2))`. Olvidar el reshape o usar el dtype incorrecto es una fuente de errores muy común.
+</Aside>
+
+### Contorno de triángulo
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((400, 400, 3), dtype=np.uint8)
+
+triangle = np.array([[200, 50], [50, 350], [350, 350]], dtype=np.int32)
+triangle = triangle.reshape((-1, 1, 2))
+
+cv2.polylines(canvas, [triangle], isClosed=True, color=(0, 255, 0), thickness=2, lineType=cv2.LINE_AA)
+
+cv2.imshow("Triangle", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+### Pentágono relleno
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((400, 400, 3), dtype=np.uint8)
+
+# Pentágono regular centrado en (200, 200)
+angles = np.linspace(0, 2 * np.pi, 6)[:-1] - np.pi / 2  # empezar desde arriba
+radius = 120
+cx, cy = 200, 200
+pentagon = np.array([
+    [int(cx + radius * np.cos(a)), int(cy + radius * np.sin(a))]
+    for a in angles
+], dtype=np.int32).reshape((-1, 1, 2))
+
+cv2.fillPoly(canvas, [pentagon], (255, 100, 50))
+
+cv2.imshow("Pentagon", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+### Múltiples polígonos a la vez
+
+Puedes pasar múltiples arrays en la lista `pts` para dibujar varios polígonos en una sola llamada.
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((400, 600, 3), dtype=np.uint8)
+
+square = np.array([[50, 50], [200, 50], [200, 200], [50, 200]], dtype=np.int32).reshape((-1, 1, 2))
+
+diamond = np.array([[400, 50], [500, 150], [400, 250], [300, 150]], dtype=np.int32).reshape((-1, 1, 2))
+
+arrow = np.array([[250, 280], [350, 280], [350, 260], [420, 300],
+                   [350, 340], [350, 320], [250, 320]], dtype=np.int32).reshape((-1, 1, 2))
+
+# Dibujar los tres contornos en una sola llamada
+cv2.polylines(canvas, [square, diamond, arrow], isClosed=True,
+              color=(0, 200, 255), thickness=2, lineType=cv2.LINE_AA)
+
+cv2.imshow("Multiple Polygons", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={basicShapesOverview}
+    alt="Resumen de las funciones de dibujo de OpenCV: líneas, rectángulos, círculos, elipses, polígonos y bounding boxes con etiquetas"
+    fit="contain"
+  />
+</div>
+
+## Ejemplo Práctico — Dibujar Bounding Boxes con Etiquetas
+
+En detección de objetos, el patrón de visualización estándar es dibujar un rectángulo de color alrededor de cada detección y colocar una etiqueta de texto encima. El siguiente ejemplo demuestra este flujo de trabajo común sobre un lienzo en blanco.
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((500, 700, 3), dtype=np.uint8)
+
+# Detecciones simuladas: (etiqueta, confianza, x1, y1, x2, y2, color)
+detections = [
+    ("person", 0.95, 50, 80, 220, 450, (0, 255, 0)),
+    ("dog", 0.87, 260, 250, 450, 440, (255, 165, 0)),
+    ("car", 0.73, 480, 100, 670, 320, (0, 0, 255)),
+]
+
+font = cv2.FONT_HERSHEY_SIMPLEX
+font_scale = 0.6
+font_thickness = 1
+
+for label, conf, x1, y1, x2, y2, color in detections:
+    # Dibujar bounding box
+    cv2.rectangle(canvas, (x1, y1), (x2, y2), color, 2)
+
+    # Preparar texto de la etiqueta
+    text = f"{label} {conf:.2f}"
+    (text_w, text_h), baseline = cv2.getTextSize(text, font, font_scale, font_thickness)
+
+    # Dibujar rectángulo relleno detrás del texto para legibilidad
+    cv2.rectangle(canvas, (x1, y1 - text_h - baseline - 4), (x1 + text_w + 4, y1), color, cv2.FILLED)
+
+    # Dibujar texto de la etiqueta en negro sobre el fondo de color
+    cv2.putText(canvas, text, (x1 + 2, y1 - baseline - 2), font, font_scale, (0, 0, 0), font_thickness, cv2.LINE_AA)
+
+cv2.imshow("Object Detection Visualization", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+Este patrón escala a cualquier cantidad de detecciones. En un pipeline real reemplazarías la lista hardcodeada de `detections` con la salida de un modelo — cada elemento típicamente contiene una etiqueta de clase, puntuación de confianza y coordenadas del bounding box. La llamada a `cv2.getTextSize()` asegura que el fondo de la etiqueta siempre se ajuste exactamente al texto sin importar la fuente o la longitud de la cadena.
+
+<Aside type="tip">
+Al dibujar sobre cuadros de cámara en tiempo real a alta velocidad, omite `cv2.LINE_AA` y usa el valor predeterminado `cv2.LINE_8` para mantener la sobrecarga de dibujo al mínimo. Reserva el dibujo con anti-aliasing para imágenes guardadas, capturas de pantalla o pipelines de bajo FPS donde la calidad visual importa.
+</Aside>

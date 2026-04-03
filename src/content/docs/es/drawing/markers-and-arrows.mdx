@@ -1,0 +1,210 @@
+---
+title: Marcadores y Flechas
+description: Anota imágenes con flechas direccionales usando cv2.arrowedLine() y resalta puntos específicos con cv2.drawMarker() para visualizar flujo óptico, keypoints y vectores de movimiento.
+sidebar:
+  order: 3
+---
+
+import { Image } from "astro:assets";
+import { Aside } from "@astrojs/starlight/components";
+import markersArrowsOverview from "../../../../assets/images/drawing/markers-arrows-overview.webp";
+
+Los marcadores y las flechas son funciones de dibujo especializadas para **anotación**. Las flechas indican dirección o flujo, los marcadores resaltan puntos de interés específicos. Son esenciales al visualizar flujo óptico, keypoints, vectores de movimiento o al construir conjuntos de datos anotados.
+
+<div style="display: flex; justify-content: center; align-items: center; margin: 2rem 0;">
+  <Image
+    src={markersArrowsOverview}
+    alt="Resumen de marcadores y flechas de OpenCV: flechas en direcciones cardinales, todos los tipos de marcadores, vectores de flujo óptico y anotaciones combinadas"
+    fit="contain"
+  />
+</div>
+
+## Dibujar Flechas -- `cv2.arrowedLine()`
+
+`cv2.arrowedLine()` dibuja un segmento de línea con una punta de flecha en el punto final:
+
+```python
+cv2.arrowedLine(img, pt1, pt2, color, thickness=1, line_type=cv2.LINE_8, shift=0, tipLength=0.1)
+```
+
+- **`pt1`** -- punto de inicio (cola), **`pt2`** -- punto final (punta)
+- **`tipLength`** -- longitud de la punta de flecha como **fracción de la longitud total de la línea** (por defecto `0.1`)
+
+### Flechas en Direcciones Cardinales
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((400, 400, 3), dtype=np.uint8)
+cx, cy, length = 200, 200, 120
+
+cv2.arrowedLine(canvas, (cx, cy), (cx, cy - length), (0, 255, 0), 2, tipLength=0.15)   # Arriba
+cv2.arrowedLine(canvas, (cx, cy), (cx, cy + length), (0, 0, 255), 2, tipLength=0.15)   # Abajo
+cv2.arrowedLine(canvas, (cx, cy), (cx - length, cy), (255, 0, 0), 2, tipLength=0.15)   # Izquierda
+cv2.arrowedLine(canvas, (cx, cy), (cx + length, cy), (255, 255, 0), 2, tipLength=0.15) # Derecha
+
+cv2.imshow("Cardinal Arrows", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+### Vectores de Flujo y Movimiento
+
+Los pares de puntos que representan posiciones antes/después se visualizan naturalmente con flechas:
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((400, 500, 3), dtype=np.uint8)
+motions = [
+    ((80, 300), (150, 200)),
+    ((200, 350), (250, 250)),
+    ((320, 280), (400, 220)),
+    ((100, 100), (180, 130)),
+]
+
+for start, end in motions:
+    cv2.circle(canvas, start, 3, (100, 100, 100), -1)
+    cv2.arrowedLine(canvas, start, end, (0, 255, 255), 2, tipLength=0.2)
+
+cv2.imshow("Motion Vectors", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+<Aside type="tip">
+Valores más grandes de `tipLength` (0.2--0.4) hacen que las puntas de flecha sean más visibles en flechas cortas. Para flechas muy cortas (unos pocos píxeles), aumenta `tipLength` para que la punta siga siendo distinguible.
+</Aside>
+
+## Dibujar Marcadores -- `cv2.drawMarker()`
+
+`cv2.drawMarker()` coloca un símbolo de marcador predefinido en un punto dado:
+
+```python
+cv2.drawMarker(img, position, color, markerType=cv2.MARKER_CROSS, markerSize=20, thickness=1)
+```
+
+OpenCV proporciona siete tipos de marcadores:
+
+| Constante | Descripción |
+|---|---|
+| `MARKER_CROSS` | Cruz `+` (por defecto) |
+| `MARKER_TILTED_CROSS` | Cruz rotada 45 grados `x` |
+| `MARKER_STAR` | Estrella de 8 puntas (cruz + cruz rotada) |
+| `MARKER_DIAMOND` / `MARKER_SQUARE` | Diamante / cuadrado alineado a los ejes |
+| `MARKER_TRIANGLE_UP` / `MARKER_TRIANGLE_DOWN` | Triángulo hacia arriba / hacia abajo |
+
+### Todos los Tipos de Marcadores en un Lienzo
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((200, 700, 3), dtype=np.uint8)
+markers = [
+    (cv2.MARKER_CROSS, "CROSS"), (cv2.MARKER_TILTED_CROSS, "TILTED"),
+    (cv2.MARKER_STAR, "STAR"), (cv2.MARKER_DIAMOND, "DIAMOND"),
+    (cv2.MARKER_SQUARE, "SQUARE"), (cv2.MARKER_TRIANGLE_UP, "TRI UP"),
+    (cv2.MARKER_TRIANGLE_DOWN, "TRI DOWN"),
+]
+for i, (marker_type, label) in enumerate(markers):
+    x = 50 + i * 90
+    cv2.drawMarker(canvas, (x, 80), (0, 255, 0), marker_type, markerSize=30, thickness=2)
+    cv2.putText(canvas, label, (x - 30, 140), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (200, 200, 200), 1)
+
+cv2.imshow("Marker Types", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+### Marcando Keypoints Detectados
+
+Simula keypoints detectados (por ejemplo, esquinas) y márcalos en un lienzo:
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((400, 400, 3), dtype=np.uint8)
+cv2.rectangle(canvas, (50, 50), (180, 180), (80, 80, 80), -1)
+cv2.rectangle(canvas, (220, 200), (370, 350), (60, 60, 60), -1)
+
+keypoints = [(50, 50), (180, 50), (50, 180), (180, 180),
+             (220, 200), (370, 200), (220, 350), (370, 350)]
+
+for pt in keypoints:
+    cv2.drawMarker(canvas, pt, (0, 0, 255), cv2.MARKER_TILTED_CROSS, markerSize=15, thickness=2)
+
+cv2.imshow("Detected Keypoints", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+<Aside type="note">
+Para visualización real de keypoints, OpenCV también proporciona `cv2.drawKeypoints()` que acepta objetos `cv2.KeyPoint` directamente. `cv2.drawMarker()` es más flexible cuando tienes tuplas de coordenadas sin procesar.
+</Aside>
+
+## Ejemplo Práctico -- Anotando una Imagen con Múltiples Elementos
+
+Una anotación completa combina primitivas de dibujo: rectángulos para regiones de interés, flechas apuntando entre ellas, marcadores en puntos clave y etiquetas de texto.
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((500, 700, 3), dtype=np.uint8)
+cv2.rectangle(canvas, (50, 100), (250, 300), (0, 255, 0), 2)
+cv2.rectangle(canvas, (400, 150), (600, 350), (255, 0, 0), 2)
+cv2.putText(canvas, "Region A", (80, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+cv2.putText(canvas, "Region B", (430, 140), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+cv2.arrowedLine(canvas, (255, 200), (395, 250), (0, 255, 255), 2, tipLength=0.08)
+cv2.putText(canvas, "flow", (300, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+for pt in [(100, 150), (200, 250), (150, 200)]:
+    cv2.drawMarker(canvas, pt, (0, 200, 200), cv2.MARKER_STAR, markerSize=15, thickness=1)
+for pt in [(450, 200), (550, 300), (500, 260)]:
+    cv2.drawMarker(canvas, pt, (200, 200, 0), cv2.MARKER_DIAMOND, markerSize=15, thickness=1)
+cv2.arrowedLine(canvas, (150, 400), (150, 260), (255, 255, 255), 1, tipLength=0.15)
+cv2.putText(canvas, "centroid", (90, 430), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+cv2.imshow("Full Annotation", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+## Ejemplo Práctico -- Visualizando Vectores de Flujo Óptico
+
+Dados arrays de puntos antes y después del movimiento, las flechas muestran el desplazamiento. La codificación por color según la magnitud ayuda a distinguir el movimiento rápido del lento:
+
+```python
+import cv2
+import numpy as np
+
+canvas = np.zeros((500, 500, 3), dtype=np.uint8)
+np.random.seed(42)
+prev_pts = np.random.randint(50, 450, size=(40, 2))
+dx = np.random.randint(5, 50, size=(40, 1))
+dy = np.random.randint(-20, 20, size=(40, 1))
+next_pts = prev_pts + np.hstack([dx, dy])
+
+for i in range(len(prev_pts)):
+    x1, y1 = int(prev_pts[i][0]), int(prev_pts[i][1])
+    x2, y2 = int(next_pts[i][0]), int(next_pts[i][1])
+    magnitude = np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+    # Mapear magnitud a color: poco movimiento (azul) -> mucho movimiento (rojo)
+    ratio = min(magnitude / 60.0, 1.0)
+    color = (int(255 * (1 - ratio)), 0, int(255 * ratio))
+    cv2.circle(canvas, (x1, y1), 2, (100, 100, 100), -1)
+    cv2.arrowedLine(canvas, (x1, y1), (x2, y2), color, 1, tipLength=0.25)
+
+cv2.putText(canvas, "Blue = low motion", (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+cv2.putText(canvas, "Red = high motion", (10, 490), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+
+cv2.imshow("Optical Flow Vectors", canvas)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+```
+
+<Aside type="tip">
+En aplicaciones reales de flujo óptico, usa `cv2.calcOpticalFlowPyrLK()` para flujo disperso o `cv2.calcOpticalFlowFarneback()` para flujo denso. La técnica de visualización anterior se aplica directamente a su salida -- solo reemplaza los puntos simulados con las coordenadas reales rastreadas.
+</Aside>
