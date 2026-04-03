@@ -1,0 +1,40 @@
+---
+title: "Compilar OpenCV"
+description: "Guías específicas por plataforma para compilar OpenCV desde el código fuente en Linux, Windows, macOS, con soporte CUDA y en NVIDIA Jetson Nano."
+sidebar:
+  order: 1
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+Estas guías cubren la compilación de OpenCV desde el código fuente en cada plataforma compatible. Compilar desde el código fuente te da control total sobre los flags de compilación, módulos opcionales (`opencv_contrib`), aceleración GPU (CUDA) y configuraciones de depuración/release.
+
+## Guías por Plataforma
+
+<CardGrid>
+  <Card title="Compilar en Linux" icon="linux">
+    GCC/Clang, dependencias con apt, flags de CMake y opencv_contrib en Linux.
+
+    [Leer más →](./build-linux)
+  </Card>
+  <Card title="Compilar en Windows" icon="laptop">
+    Visual Studio, cmake-gui, Ninja y problemas comunes con MSVC en Windows.
+
+    [Leer más →](./build-windows)
+  </Card>
+  <Card title="Compilar en macOS" icon="apple">
+    Xcode, Homebrew y flags de compilación para Apple Silicon (serie M) en macOS.
+
+    [Leer más →](./build-macos)
+  </Card>
+  <Card title="Compilar con CUDA (Linux y Windows)" icon="rocket">
+    Flags de CMake, tabla de compute capability y comandos completos de compilación con CUDA.
+
+    [Leer más →](./build-cuda)
+  </Card>
+  <Card title="Compilar en Jetson Nano" icon="laptop">
+    JetPack 4.6, CUDA 10.2, expansión de swap y configuración CMake completa para Jetson Nano.
+
+    [Leer más →](./build-jetson)
+  </Card>
+</CardGrid>
