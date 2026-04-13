@@ -1,4 +1,4 @@
-<img src="https://assets.robomous.ai/public-images/robomous-banner.svg" alt="Robomous.ai" width=300 />
+<img src="https://cdn.robomous.ai/public-images/robomous-banner.svg" alt="Robomous.ai" width=300 />
 
 ---
 
